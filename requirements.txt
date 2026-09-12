@@ -1,0 +1,9 @@
+python-telegram-bot==22.8
+yt-dlp
+faster-whisper==1.2.1
+requests
+deep-translator
+fpdf2
+arabic-reshaper
+python-bidi
+python-dotenv
