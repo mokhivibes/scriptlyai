@@ -33,7 +33,9 @@ HELP_TEXT = (
     "Menga *YouTube*, *Instagram*, *TikTok* yoki *X/Twitter* havolasini "
     "yuboring — men uni tinglab, hammasini yozib olib, toza holda "
     "qaytarib beraman.\n"
-    "Nusxa kerakmi? PDF yoki matn fayli qilib bera olaman.\n\n"
+    "Nusxa kerakmi? PDF yoki matn fayli qilib bera olaman. Nutqli kontent "
+    "bilan yaxshiroq ishlayman — qoʻshiqlar bilan sekinroq va aniqligi "
+    "pastroq boʻlishi mumkin.\n\n"
     "_Facebook tez orada qoʻshiladi — biroz kuting!_\n\n"
     "/history — oldingi matnlaringizni koʻrish. /language — til "
     "sozlamasini oʻzgartirish. /cancel — bekor qilish va boshidan boshlash. "
@@ -104,6 +106,15 @@ ERROR_NO_AUDIO = "Bu videoda ovoz yoʻqday koʻrinadi — men faqat ovozi bor vi
 
 NO_TRANSCRIPT_SAVED = "Bu matn endi mendan yoʻqoldi — havolani qayta yuboring, yangidan boshlaymiz."
 STILL_WORKING = "Hali oldingi soʻrovingiz ustida ishlayapman — uni tugatishga biroz vaqt bering!"
+
+LONG_CONTENT_WARNING = (
+    "Bu birozroq uzunroq koʻrinadi (~{minutes} daqiqa) — matnga aylantirish "
+    "bir necha daqiqa vaqt olishi mumkin, qoʻshiqlar uchun natija nutqqa "
+    "qaraganda unchalik aniq boʻlmasligi mumkin. Davom etaymi?"
+)
+CONFIRM_YES_BUTTON = "✅ Ha, davom et"
+CONFIRM_NO_BUTTON = "❌ Bekor qilish"
+PROCESSING_CANCELLED = "Boʻldi, bekor qilindi. Tayyor boʻlganingizda boshqa havola yuboring."
 
 CANCEL_HAD_DATA = (
     "Boʻldi, *tozalandi*! Saqlab turgan narsalarim endi yoʻq. Tayyor "

@@ -101,6 +101,13 @@ def match_shortcut(text: str):
     return _SHORTCUT_LOOKUP.get(text)
 
 
+def long_content_warning(lang, minutes) -> str:
+    """`minutes` is a plain number - safe to format into the message
+    regardless of parse_mode, unlike the transcript/title content this rule
+    normally protects against."""
+    return _locale(lang).LONG_CONTENT_WARNING.format(minutes=round(minutes))
+
+
 def start_text(lang, first_name: str) -> str:
     return _locale(lang).START_TEXT.format(first_name=first_name)
 

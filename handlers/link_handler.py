@@ -28,9 +28,47 @@ TELEGRAM_MESSAGE_MAX_CHARS = 4000
 
 EXPORT_DIR = "downloads"
 
+# Above this, show a confirm/cancel warning before committing to the full
+# pipeline instead of silently making someone wait - a full song can take
+# 5+ minutes to transcribe, and results are less reliable for music/singing
+# than speech (see README Known Limitations). Chosen to comfortably clear
+# typical short-form clips (YouTube Shorts, TikTok, Reels) while catching
+# most full songs and longer spoken content.
+LONG_CONTENT_THRESHOLD_SECONDS = 90
+
 
 def _lang(user_id) -> str:
     return get_interface_language(user_id) or msg.DEFAULT_LANGUAGE
+
+
+def _get_duration_seconds(url):
+    """
+    Best-effort, download-free duration lookup via yt-dlp metadata only
+    (skip_download=True - no video/audio bytes fetched). Deliberately not
+    wrapped in call_sync_with_retry: this is an optional nicety gating a
+    UX warning, not a required step - if it fails or times out for any
+    reason, returning None just skips the warning and lets the real
+    download attempt (which DOES have full retry/error handling) proceed
+    and surface whatever actual problem exists.
+    """
+    import yt_dlp
+
+    options = {"quiet": True, "no_warnings": True, "skip_download": True}
+    try:
+        with yt_dlp.YoutubeDL(options) as ydl:
+            info = ydl.extract_info(url, download=False)
+        return info.get("duration")
+    except Exception as error:
+        logger.warning(f"Duration lookup failed (non-fatal, proceeding without warning): {error}")
+        return None
+
+
+def build_long_content_confirm_keyboard(lang):
+    keyboard = [[
+        InlineKeyboardButton(msg.t(lang, "CONFIRM_YES_BUTTON"), callback_data="confirm_process"),
+        InlineKeyboardButton(msg.t(lang, "CONFIRM_NO_BUTTON"), callback_data="cancel_process"),
+    ]]
+    return InlineKeyboardMarkup(keyboard)
 
 
 async def send_long_text(message, text: str):
@@ -117,6 +155,15 @@ async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
     platform = detect_platform(url)
 
     if platform in ("youtube", "instagram", "twitter", "tiktok"):
+        # Marked busy synchronously, BEFORE the duration lookup below awaits
+        # anything - the lookup is a real await point, and leaving busy
+        # unset until after it would reopen exactly the race the busy-guard
+        # exists to prevent (two rapid links from the same user both
+        # passing the "not busy" check above before either's lookup
+        # resolves). Busy stays True through the long-content warning too,
+        # if that path is taken - not just during active processing -
+        # since a pending confirm/cancel tap is still "something in flight"
+        # that a second incoming link shouldn't be able to interleave with.
         _mark_busy(context)
 
         platform_name = {
@@ -126,147 +173,21 @@ async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "tiktok": "TikTok",
         }[platform]
 
-        # One status message, edited in place through each processing step,
-        # instead of sending a new message per step - keeps the chat from
-        # filling up with transient "still working on it" messages.
-        # parse_mode is safe here: platform_name comes from the fixed dict
-        # above (exactly 4 known values), never from unpredictable content.
-        status_message = await call_with_retry(
-            update.message.reply_text, msg.downloading_message(lang, platform_name), parse_mode="Markdown"
-        )
+        duration = await asyncio.to_thread(_get_duration_seconds, url)
 
-        try:
-            # download_*/extract_audio/transcribe_audio/clean_transcript are
-            # all synchronous, blocking calls (subprocess, CPU-bound
-            # inference, blocking HTTP). Run them in a thread so they don't
-            # freeze the whole event loop - otherwise concurrent_updates
-            # would be meaningless, since one user's multi-minute
-            # transcription would still block every other user's updates
-            # from being dispatched at all. call_sync_with_retry adds a
-            # coarse retry-with-backoff around the whole download attempt,
-            # on top of yt-dlp's own now-explicit per-request retries (see
-            # youtube_service.py) - see utils/network_retry.py for why both
-            # layers exist and how permanent failures (private/deleted
-            # video) are told apart from transient ones.
-            if platform == "youtube":
-                video_path, video_title = await asyncio.to_thread(
-                    call_sync_with_retry, download_youtube_video, url
-                )
-
-            elif platform == "twitter":
-                video_path, video_title = await asyncio.to_thread(
-                    call_sync_with_retry, download_twitter_video, url
-                )
-
-            elif platform == "tiktok":
-                video_path, video_title = await asyncio.to_thread(
-                    call_sync_with_retry, download_tiktok_video, url
-                )
-
-            elif platform == "instagram":
-                def _download_instagram():
-                    import yt_dlp
-
-                    options = {
-                        "format": "best",
-                        # Use the post's title/caption so the file is
-                        # recognizable later (falls back to the post id if
-                        # unavailable); the .100s cap keeps long Instagram
-                        # captions from producing unwieldy filenames.
-                        "outtmpl": "downloads/%(title,id).100s.%(ext)s",
-                        "noplaylist": True,
-                        "quiet": True,
-                        "no_warnings": True,
-                        # See youtube_service.py's identical option - yt-dlp's
-                        # Python API does not apply its CLI default of 10
-                        # retries unless set explicitly.
-                        "retries": 5,
-                        "fragment_retries": 5,
-                    }
-
-                    with yt_dlp.YoutubeDL(options) as ydl:
-                        info = ydl.extract_info(url, download=True)
-                        return ydl.prepare_filename(info), info.get("title")
-
-                video_path, video_title = await asyncio.to_thread(call_sync_with_retry, _download_instagram)
-
-            logger.info(f"Video downloaded: {video_path}")
-
-            await call_with_retry(status_message.edit_text, msg.extracting_audio_message(lang))
-
-            audio_path = await asyncio.to_thread(extract_audio, video_path)
-
-            logger.info(f"Audio extracted: {audio_path}")
-
-            with open(audio_path, "rb") as audio_file:
-                await call_with_retry(
-                    update.message.reply_audio,
-                    audio=audio_file,
-                    filename=os.path.basename(audio_path),
-                    caption=msg.t(lang, "AUDIO_CAPTION")
-                )
-
-            await call_with_retry(status_message.edit_text, msg.transcribing_message(lang))
-
-            from services.speech_service import transcribe_audio
-
-            transcript, detected_language = await asyncio.to_thread(transcribe_audio, audio_path)
-
-            logger.info(f"Detected language: {detected_language}")
-            logger.info(f"Raw transcript: {transcript}")
-
-            await call_with_retry(status_message.edit_text, msg.cleaning_message(lang))
-
-            cleaned_transcript = await asyncio.to_thread(clean_transcript, transcript)
-            logger.info(f"Cleaned transcript: {cleaned_transcript}")
-
-            context.user_data["last_transcript"] = cleaned_transcript
-            context.user_data["detected_language"] = detected_language
-
-            add_transcript(
-                user_id=update.effective_user.id,
-                platform=platform,
-                detected_language=detected_language,
-                title=video_title,
-                transcript=cleaned_transcript
-            )
-
-            await call_with_retry(update.message.reply_text, msg.t(lang, "TRANSCRIPT_HEADER"))
-            await send_long_text(update.message, cleaned_transcript)
+        if duration and duration > LONG_CONTENT_THRESHOLD_SECONDS:
+            context.user_data["pending_url"] = url
+            context.user_data["pending_platform"] = platform
+            context.user_data["pending_platform_name"] = platform_name
 
             await call_with_retry(
                 update.message.reply_text,
-                msg.t(lang, "EXPORT_PROMPT"),
-                reply_markup=build_export_keyboard(lang)
+                msg.long_content_warning(lang, duration / 60),
+                reply_markup=build_long_content_confirm_keyboard(lang)
             )
+            return
 
-        except Exception as error:
-            error_name = type(error).__name__
-            error_text = str(error).lower()
-
-            logger.exception(f"Processing failed for platform={platform}: {error_name}: {error}")
-
-            if "no video could be found" in error_text:
-                message = msg.t(lang, "ERROR_NO_VIDEO")
-            elif "does not contain an audio track" in error_text:
-                message = msg.t(lang, "ERROR_NO_AUDIO")
-            elif "private" in error_text:
-                message = msg.t(lang, "ERROR_PRIVATE")
-            elif "unavailable" in error_text or "not available" in error_text or "removed" in error_text:
-                message = msg.t(lang, "ERROR_UNAVAILABLE")
-            elif "timeout" in error_text or "timed out" in error_text:
-                message = msg.t(lang, "ERROR_TIMEOUT")
-            elif "networkerror" in error_name.lower() or "readerror" in error_name.lower():
-                message = msg.t(lang, "ERROR_NETWORK")
-            elif "too large" in error_text or "entity too large" in error_text:
-                message = msg.t(lang, "ERROR_TOO_LARGE")
-            else:
-                message = msg.t(lang, "ERROR_GENERIC")
-
-            await call_with_retry(status_message.edit_text, message)
-
-        finally:
-            _mark_free(context)
+        await _process_link(update.message, context, url, platform, platform_name, lang, update.effective_user.id)
 
     elif platform == "facebook":
         await call_with_retry(update.message.reply_text, msg.t(lang, "FACEBOOK_PLACEHOLDER"))
@@ -275,11 +196,195 @@ async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await call_with_retry(update.message.reply_text, msg.t(lang, "UNRECOGNIZED_LINK"))
 
 
+async def _process_link(message, context, url, platform, platform_name, lang, user_id):
+    """
+    Runs the actual download -> extract -> transcribe -> clean -> export
+    pipeline. Called either immediately (short content) or from the
+    confirm/cancel callback (long content, after the user taps "go ahead").
+    `message` is whichever object has .reply_text/.reply_audio available -
+    update.message for the immediate path, query.message for the
+    confirmed-after-warning path.
+    """
+
+    _mark_busy(context)
+
+    # One status message, edited in place through each processing step,
+    # instead of sending a new message per step - keeps the chat from
+    # filling up with transient "still working on it" messages.
+    # parse_mode is safe here: platform_name comes from the fixed dict
+    # above (exactly 4 known values), never from unpredictable content.
+    status_message = await call_with_retry(
+        message.reply_text, msg.downloading_message(lang, platform_name), parse_mode="Markdown"
+    )
+
+    try:
+        # download_*/extract_audio/transcribe_audio/clean_transcript are
+        # all synchronous, blocking calls (subprocess, CPU-bound inference,
+        # blocking HTTP). Run them in a thread so they don't freeze the
+        # whole event loop - otherwise concurrent_updates would be
+        # meaningless, since one user's multi-minute transcription would
+        # still block every other user's updates from being dispatched at
+        # all. call_sync_with_retry adds a coarse retry-with-backoff around
+        # the whole download attempt, on top of yt-dlp's own now-explicit
+        # per-request retries (see youtube_service.py) - see
+        # utils/network_retry.py for why both layers exist and how
+        # permanent failures (private/deleted video) are told apart from
+        # transient ones.
+        if platform == "youtube":
+            video_path, video_title = await asyncio.to_thread(
+                call_sync_with_retry, download_youtube_video, url
+            )
+
+        elif platform == "twitter":
+            video_path, video_title = await asyncio.to_thread(
+                call_sync_with_retry, download_twitter_video, url
+            )
+
+        elif platform == "tiktok":
+            video_path, video_title = await asyncio.to_thread(
+                call_sync_with_retry, download_tiktok_video, url
+            )
+
+        elif platform == "instagram":
+            def _download_instagram():
+                import yt_dlp
+
+                options = {
+                    "format": "best",
+                    # Use the post's title/caption so the file is
+                    # recognizable later (falls back to the post id if
+                    # unavailable); the .100s cap keeps long Instagram
+                    # captions from producing unwieldy filenames.
+                    "outtmpl": "downloads/%(title,id).100s.%(ext)s",
+                    "noplaylist": True,
+                    "quiet": True,
+                    "no_warnings": True,
+                    # See youtube_service.py's identical option - yt-dlp's
+                    # Python API does not apply its CLI default of 10
+                    # retries unless set explicitly.
+                    "retries": 5,
+                    "fragment_retries": 5,
+                }
+
+                with yt_dlp.YoutubeDL(options) as ydl:
+                    info = ydl.extract_info(url, download=True)
+                    return ydl.prepare_filename(info), info.get("title")
+
+            video_path, video_title = await asyncio.to_thread(call_sync_with_retry, _download_instagram)
+
+        logger.info(f"Video downloaded: {video_path}")
+
+        await call_with_retry(status_message.edit_text, msg.extracting_audio_message(lang))
+
+        audio_path = await asyncio.to_thread(extract_audio, video_path)
+
+        logger.info(f"Audio extracted: {audio_path}")
+
+        with open(audio_path, "rb") as audio_file:
+            await call_with_retry(
+                message.reply_audio,
+                audio=audio_file,
+                filename=os.path.basename(audio_path),
+                caption=msg.t(lang, "AUDIO_CAPTION")
+            )
+
+        await call_with_retry(status_message.edit_text, msg.transcribing_message(lang))
+
+        from services.speech_service import transcribe_audio
+
+        # Blind auto-detection has repeatedly misdetected real Uzbek audio
+        # as a linguistically-related-but-wrong language (Kazakh, Turkish,
+        # Persian all observed on real content) - see README Known
+        # Limitations. A same-day fix forcing language="uz" for Uzbek-
+        # interface users was tried and DID help on one real case, but was
+        # reverted before launch: further testing showed the same audio
+        # produced wildly different quality across separate runs even with
+        # the language forced (Whisper's own decoding randomness on
+        # hard/singing content, not something the language hint fixes), and
+        # forcing still carried the tradeoff of misforcing genuinely
+        # non-Uzbek content for Uzbek-interface users. Superseded by the
+        # duration-based warning + /help disclaimer (see
+        # LONG_CONTENT_THRESHOLD_SECONDS below), which is honest about
+        # reliability without forcing anyone's language. Plain auto-detect
+        # for all 4 interface languages.
+        transcript, detected_language = await asyncio.to_thread(transcribe_audio, audio_path)
+
+        logger.info(f"Detected language: {detected_language}")
+        logger.info(f"Raw transcript: {transcript}")
+
+        await call_with_retry(status_message.edit_text, msg.cleaning_message(lang))
+
+        cleaned_transcript = await asyncio.to_thread(clean_transcript, transcript)
+        logger.info(f"Cleaned transcript: {cleaned_transcript}")
+
+        context.user_data["last_transcript"] = cleaned_transcript
+        context.user_data["detected_language"] = detected_language
+
+        add_transcript(
+            user_id=user_id,
+            platform=platform,
+            detected_language=detected_language,
+            title=video_title,
+            transcript=cleaned_transcript
+        )
+
+        await call_with_retry(message.reply_text, msg.t(lang, "TRANSCRIPT_HEADER"))
+        await send_long_text(message, cleaned_transcript)
+
+        await call_with_retry(
+            message.reply_text,
+            msg.t(lang, "EXPORT_PROMPT"),
+            reply_markup=build_export_keyboard(lang)
+        )
+
+    except Exception as error:
+        error_name = type(error).__name__
+        error_text = str(error).lower()
+
+        logger.exception(f"Processing failed for platform={platform}: {error_name}: {error}")
+
+        if "no video could be found" in error_text:
+            error_reply_text = msg.t(lang, "ERROR_NO_VIDEO")
+        elif "does not contain an audio track" in error_text:
+            error_reply_text = msg.t(lang, "ERROR_NO_AUDIO")
+        elif "private" in error_text:
+            error_reply_text = msg.t(lang, "ERROR_PRIVATE")
+        elif "unavailable" in error_text or "not available" in error_text or "removed" in error_text:
+            error_reply_text = msg.t(lang, "ERROR_UNAVAILABLE")
+        elif "timeout" in error_text or "timed out" in error_text:
+            error_reply_text = msg.t(lang, "ERROR_TIMEOUT")
+        elif "networkerror" in error_name.lower() or "readerror" in error_name.lower():
+            error_reply_text = msg.t(lang, "ERROR_NETWORK")
+        elif "too large" in error_text or "entity too large" in error_text:
+            error_reply_text = msg.t(lang, "ERROR_TOO_LARGE")
+        else:
+            error_reply_text = msg.t(lang, "ERROR_GENERIC")
+
+        await call_with_retry(status_message.edit_text, error_reply_text)
+
+    finally:
+        _mark_free(context)
+
+
 async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await call_with_retry(query.answer)
 
     lang = _lang(query.from_user.id)
+    data = query.data
+
+    # Checked BEFORE the busy-guard below on purpose: while a long-content
+    # confirmation is pending, `busy` IS True (set in handle_link before
+    # the duration lookup, deliberately left set through the warning) -
+    # without this early check, the busy-guard right below would reject
+    # the user's own confirm/cancel tap with STILL_WORKING, since from its
+    # perspective this user already has something in flight.
+    if data == "confirm_process":
+        await _handle_confirm_long_content(query, context, lang)
+        return
+    if data == "cancel_process":
+        await _handle_cancel_long_content(query, context, lang)
+        return
 
     if _is_busy(context):
         await call_with_retry(query.message.reply_text, msg.t(lang, "STILL_WORKING"))
@@ -287,14 +392,44 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
 
     _mark_busy(context)
     try:
-        data = query.data
-
         if data in ("export_pdf", "export_txt"):
             await _handle_export(query, context, lang, data)
         elif data.startswith("history_"):
             await _handle_history_select(query, context, lang, data.replace("history_", ""))
     finally:
         _mark_free(context)
+
+
+async def _handle_confirm_long_content(query, context, lang):
+    url = context.user_data.pop("pending_url", None)
+    platform = context.user_data.pop("pending_platform", None)
+    platform_name = context.user_data.pop("pending_platform_name", None)
+
+    if not url:
+        # Pending state is gone (e.g. the bot restarted between the warning
+        # and this tap) - nothing to resume. Release busy (set when the
+        # original link came in) rather than leaving the user stuck, and
+        # ask for the link again.
+        _mark_free(context)
+        await call_with_retry(query.message.reply_text, msg.t(lang, "NO_LINK_FOUND"))
+        return
+
+    # busy is already True from when the original link triggered the
+    # warning - _process_link marks it again (harmless, idempotent) and
+    # releases it in its own finally block once processing ends.
+    await _process_link(query.message, context, url, platform, platform_name, lang, query.from_user.id)
+
+
+async def _handle_cancel_long_content(query, context, lang):
+    context.user_data.pop("pending_url", None)
+    context.user_data.pop("pending_platform", None)
+    context.user_data.pop("pending_platform_name", None)
+    # Releases the busy flag set when the original long-content link came
+    # in - without this, the user would stay "occupied" forever with
+    # nothing actually in flight to resolve it.
+    _mark_free(context)
+
+    await call_with_retry(query.message.reply_text, msg.t(lang, "PROCESSING_CANCELLED"))
 
 
 async def _handle_export(query, context, lang, data):

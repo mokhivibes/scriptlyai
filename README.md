@@ -10,6 +10,8 @@ Runs entirely on local/free tools — no paid APIs. Everything (transcription, c
 - **Pipeline:** download → extract audio → transcribe (Whisper) → clean up (local LLM) → export (PDF/text).
 - **Interface localization:** every bot-facing string (not just the transcript) is available in English, Russian, Arabic, and Uzbek, chosen via `/language` and saved per user.
 - **History:** `/history` lists your last 10 transcripts; tap one to reopen it and re-export.
+- **Long-content warning:** before committing to anything over ~90 seconds, the bot checks the duration up front (no download yet) and asks for confirmation, rather than silently making someone wait several minutes for a result — cancelling stops before any download happens.
+- **Discoverability:** a logo + greeting on first contact, a persistent shortcuts keyboard (Help/History/Language, localized) always visible below the text input, and a localized command list in Telegram's own chat-menu button.
 - **Resilient by default:** retry-with-backoff on transient network failures, a per-user busy-guard so concurrent requests can't corrupt each other's state, and a safety net that refuses to let the cleanup step silently drop content.
 - **Runs unattended:** deployed via `launchd` on macOS — starts at login, restarts automatically if it crashes.
 
@@ -121,16 +123,21 @@ This is a **LaunchAgent** (user-level), not a LaunchDaemon (system-level/root) �
 
 ## Known Limitations
 
-### ASR language misdetection (Uzbek, and some Arabic dialects)
+### ASR language misdetection (Arabic dialects, Uzbek)
 
 Whisper (`medium` model) has, in real testing, misdetected the *language itself* — not just transcribed poorly:
 
 - A real Uzbek clip was detected as **Kazakh** (confidence 0.59) and transcribed into Kazakh-script gibberish.
+- A second real Uzbek song was detected as **Persian** and transcribed into unreadable Perso-Arabic script nonsense.
 - A real Arabic Instagram reel was detected as **Turkish**, also producing garbled output.
 
-Both wrong guesses land on a *linguistically related* language (Uzbek↔Kazakh are both Turkic; the Arabic case↔Turkish) rather than something random — this looks like a systematic pattern in Whisper's language-ID model confusing related languages, not one-off noise. It's possible the larger `large-v3` model would do better (language detection generally improves with model size), but **this is unverified**: a same-day comparison test was time-boxed and stopped when the `large-v3` download stalled (HuggingFace Hub rate-limiting an unauthenticated request), and this machine's available RAM headroom was already borderline even before that, so testing it properly would need both a fix for the download and more free memory than was available at the time.
+These wrong guesses land on *linguistically related* languages (Uzbek↔Kazakh are both Turkic; Uzbek uses a lot of Persian/Arabic loanwords historically; the Arabic case↔Turkish) rather than something random — this looks like a systematic pattern in Whisper's language-ID model confusing related languages, not one-off noise. It's possible the larger `large-v3` model would do better (language detection generally improves with model size), but **this is unverified**: a same-day comparison test was time-boxed and stopped when the `large-v3` download stalled (HuggingFace Hub rate-limiting an unauthenticated request), and this machine's available RAM headroom was already borderline even before that.
 
-**Mitigation already in place:** the cleanup safety net (see Architecture) catches the resulting low word-overlap when a misdetection produces nonsense output and falls back to the raw transcript — so a misdetection produces a *visibly wrong-language raw transcript* rather than a confidently-wrong "cleaned" one. This doesn't fix the underlying detection problem, but it prevents the failure mode from being silent or misleadingly polished.
+**A same-day fix was tried for Uzbek and then reverted before launch.** Forcing `language="uz"` in `transcribe_audio()` for users whose interface language is Uzbek did produce a dramatic improvement on one real test case (the same "Meni sev" audio went from unreadable Perso-Arabic gibberish to clearly readable, coherent lyrics). But further testing showed the underlying problem is deeper than language selection: **the exact same audio, with the exact same forced language, produced wildly different quality across separate runs** — one clean, one garbled — pointing to genuine randomness in Whisper's own decoding on hard/singing content, not something a language hint reliably fixes. Forcing also carried its own real cost: it measurably tripled processing time on music (~303s forced vs. ~92s auto-detect on the same song), and it would confidently mis-transcribe any genuinely non-Uzbek content a Uzbek-interface user shares, trading one failure mode for another rather than eliminating it. **This was confirmed live**: while the forcing fix was still deployed, a real user with the interface set to Uzbek sent several genuinely English videos, and each was force-transcribed as if it were Uzbek. Given the fix didn't reliably solve the real problem and introduced its own regression, it was reverted — Whisper's plain auto-detection is now used for all 4 interface languages, matching the original behavior.
+
+**What's shipped instead**: the duration-based confirm/cancel warning described above (Features), plus an explicit `/help` disclaimer that music/singing is slower and less reliable than speech. This is honest about the real risk without silently forcing anyone's language or pretending the underlying detection problem is solved.
+
+**Mitigation still in place regardless**: the cleanup safety net (see Architecture) catches the resulting low word-overlap when a misdetection produces nonsense output and falls back to the raw transcript — so a misdetection still produces a *visibly wrong-language raw transcript* rather than a confidently-wrong "cleaned" one.
 
 ### TikTok — blocked from this development location
 

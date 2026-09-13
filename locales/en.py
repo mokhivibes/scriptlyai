@@ -32,7 +32,9 @@ START_TEXT = (
 HELP_TEXT = (
     "Send me a *YouTube*, *Instagram*, *TikTok*, or *X/Twitter* link and I'll "
     "listen to it, write it all down, and hand it back to you clean.\n"
-    "Want a copy to keep? I can export it as a PDF or text file.\n\n"
+    "Want a copy to keep? I can export it as a PDF or text file. Works best "
+    "on spoken content — music or singing can take longer and come out "
+    "less accurate.\n\n"
     "_Facebook is on the way — hang tight!_\n\n"
     "/history to revisit past transcripts. /language to change how I talk to you. "
     "/cancel to start over. /start to say hi again."
@@ -109,6 +111,17 @@ ERROR_NO_AUDIO = "This video doesn't seem to have any sound in it — I can only
 
 NO_TRANSCRIPT_SAVED = "I don't have that transcript anymore — send me the link again and we'll start fresh."
 STILL_WORKING = "Still working on your last one — give me a moment to finish that first!"
+
+# --- Long-content confirmation (duration-based, shown before committing to
+# a multi-minute job) ---
+LONG_CONTENT_WARNING = (
+    "This looks like a longer one (~{minutes} min) — transcription can take "
+    "several minutes, and results are less reliable for music/singing than "
+    "speech. Want me to go ahead?"
+)
+CONFIRM_YES_BUTTON = "✅ Yes, go ahead"
+CONFIRM_NO_BUTTON = "❌ Cancel"
+PROCESSING_CANCELLED = "No worries — cancelled. Send another link whenever you're ready."
 
 # --- /cancel ---
 CANCEL_HAD_DATA = (
