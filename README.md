@@ -1,13 +1,13 @@
 # ScriptlyAI
 
-A Telegram bot that turns a video link into a clean, exportable transcript. Send it a YouTube, Instagram, X/Twitter, or TikTok link; it downloads the audio, transcribes it locally, cleans it up, and hands back a PDF or text file. The whole bot interface (buttons, prompts, errors) is localized into English, Russian, Arabic, and Uzbek.
+A Telegram bot that turns a video link into a clean, exportable transcript. Send it a YouTube, Instagram, X/Twitter, or TikTok link; it downloads the audio, transcribes it, cleans it up, and hands back a PDF or text file. The whole bot interface (buttons, prompts, errors) is localized into English, Russian, Arabic, and Uzbek.
 
-Runs entirely on local/free tools — no paid APIs. Everything (transcription, cleanup) happens on-device.
+Transcription and cleanup run on [Groq's](https://groq.com) hosted API, on its free tier (no credit card required) — a deliberate switch from an earlier local-only design (faster-whisper + a local Ollama model) made specifically so the bot itself needs almost no RAM/CPU and can run on ordinary free or cheap hosting instead of a dedicated machine. See [Architecture](#why-groq-instead-of-local-inference) for the reasoning and the real tradeoffs that came with it.
 
 ## Features
 
 - **Platforms:** YouTube, Instagram, X/Twitter, TikTok (network-permitting — see [Known Limitations](#known-limitations)).
-- **Pipeline:** download → extract audio → transcribe (Whisper) → clean up (local LLM) → export (PDF/text).
+- **Pipeline:** download → extract audio → transcribe (Groq-hosted Whisper) → clean up (Groq-hosted LLM) → export (PDF/text).
 - **Interface localization:** every bot-facing string (not just the transcript) is available in English, Russian, Arabic, and Uzbek, chosen via `/language` and saved per user.
 - **History:** `/history` lists your last 10 transcripts; tap one to reopen it and re-export.
 - **Long-content warning:** before committing to anything over ~90 seconds, the bot checks the duration up front (no download yet) and asks for confirmation, rather than silently making someone wait several minutes for a result — cancelling stops before any download happens.
@@ -32,8 +32,8 @@ services/
   twitter_service.py       yt-dlp wrapper for X/Twitter
   tiktok_service.py        yt-dlp wrapper for TikTok (untested from ISP-blocked locations)
   audio_service.py         ffmpeg audio extraction
-  speech_service.py        faster-whisper (medium model) transcription
-  ai_cleanup_service.py    Local LLM (Ollama, qwen2.5:3b-instruct) cleanup + word-overlap safety net
+  speech_service.py        Groq-hosted Whisper (large-v3) transcription
+  ai_cleanup_service.py    Groq-hosted LLM (openai/gpt-oss-120b) cleanup + word-overlap safety net
   export_service.py        PDF (with Arabic RTL shaping) and text export
   translation_service.py   Transcript translation — built but currently unused (see below)
 
@@ -46,6 +46,17 @@ utils/
 locales/
   en.py, ru.py, ar.py, uz.py   One module per language, identical attribute names in each
 ```
+
+### Why Groq instead of local inference
+
+This project originally ran faster-whisper (medium model, ~1.4GB) and a local Ollama model entirely on-device — genuinely free, but requiring several GB of RAM to be resident at all times, which ruled out ordinary free/cheap hosting (a $0-7/month VPS, most PaaS free tiers) entirely. Switched to Groq's hosted API (also free, no credit card, rate-limited rather than paid) specifically to remove that requirement.
+
+**Tested before switching, on real content, not assumed:**
+- Arabic transcription: as good as local Whisper, slightly better on one real clip (fixed two small grammatical errors local Whisper got wrong).
+- Cleanup quality: Groq's `openai/gpt-oss-120b` produced a correct, minimal edit (a single missing comma, no fabrication) on the exact category of content (`qwen2.5:3b-instruct` was chosen for after `llama3.2:3b` was rejected for fabricating Arabic output) — and did it in under a second, versus several seconds to tens of seconds locally.
+- Uzbek transcription: **not improved.** See Known Limitations - this was tested across three different Whisper variants (local medium, Groq's turbo, Groq's full large-v3) and all three misdetect the same real Uzbek clip as a different Turkic language. This is a gap in Whisper's own training data, unrelated to local vs. hosted or model size, so the switch doesn't regress anything that wasn't already broken.
+
+One real tradeoff worth naming: this reintroduces an external-service dependency (rate limits, uptime, API changes) for a project that had deliberately avoided that so far, and got burned by exactly this category of risk once already (`translation_service.py` below). Groq's free tier is a clearly-documented, intentional offering rather than a scraped/reverse-engineered one, so it's a different risk profile - but it's not zero.
 
 ### Why translation isn't in the pipeline
 
@@ -62,13 +73,9 @@ locales/
 ### 1. System dependencies (not pip-installable)
 
 - **Python 3.14** (or compatible)
-- **ffmpeg / ffprobe** — audio extraction. `brew install ffmpeg` on macOS.
-- **Ollama**, running locally with the `qwen2.5:3b-instruct` model pulled:
-  ```bash
-  brew install ollama
-  ollama pull qwen2.5:3b-instruct
-  ```
-  The model choice is deliberate — `llama3.2:3b` was tried and rejected for poor Arabic support (fabricated output during testing). Ollama must be running (`ollama serve`, or installed as a background service via `brew services start ollama`) before the bot starts.
+- **ffmpeg / ffprobe** — audio extraction. `brew install ffmpeg` on macOS, `apt install ffmpeg` on Debian/Ubuntu.
+
+No local ML runtime (Ollama, a Whisper model download) is needed anymore — transcription and cleanup both call Groq's hosted API instead. This is the main reason the bot is light enough to run on ordinary free/cheap hosting; see [Why Groq instead of local inference](#why-groq-instead-of-local-inference).
 
 ### 2. Python environment
 
@@ -78,17 +85,16 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-The first run will also download the Whisper `medium` model (~1.4GB) via `faster-whisper` automatically.
-
 ### 3. Configuration
 
 Create a `.env` file in the project root:
 
 ```
 BOT_TOKEN=your-telegram-bot-token-here
+GROQ_API_KEY=your-groq-api-key-here
 ```
 
-Get a token from [@BotFather](https://t.me/BotFather) on Telegram.
+Get a Telegram token from [@BotFather](https://t.me/BotFather). Get a free Groq API key at [console.groq.com](https://console.groq.com) → API Keys → Create API Key — no credit card required for the free tier. Treat this key like a password: never commit it, never paste it anywhere public, and rotate it (delete + create a new one) if it's ever exposed in a chat log, screenshot, or shared terminal session.
 
 ### 4. Run it
 
@@ -131,7 +137,30 @@ Whisper (`medium` model) has, in real testing, misdetected the *language itself*
 - A second real Uzbek song was detected as **Persian** and transcribed into unreadable Perso-Arabic script nonsense.
 - A real Arabic Instagram reel was detected as **Turkish**, also producing garbled output.
 
-These wrong guesses land on *linguistically related* languages (Uzbek↔Kazakh are both Turkic; Uzbek uses a lot of Persian/Arabic loanwords historically; the Arabic case↔Turkish) rather than something random — this looks like a systematic pattern in Whisper's language-ID model confusing related languages, not one-off noise. It's possible the larger `large-v3` model would do better (language detection generally improves with model size), but **this is unverified**: a same-day comparison test was time-boxed and stopped when the `large-v3` download stalled (HuggingFace Hub rate-limiting an unauthenticated request), and this machine's available RAM headroom was already borderline even before that.
+These wrong guesses mostly land on *linguistically related* languages (Uzbek↔Kazakh are both Turkic; Uzbek uses a lot of Persian/Arabic loanwords historically; the Arabic case↔Turkish) - though not exclusively, see below - rather than something random, which looked at first like a systematic pattern in Whisper's language-ID model confusing related languages specifically.
+
+**`large-v3` was later tested and confirmed NOT to fix this.** Once the bot switched to Groq's hosted API, testing became trivial: Groq's `whisper-large-v3-turbo` misdetected the same real Uzbek clip as **Turkish** (transcribing almost nothing, apparently deciding it was just background music); Groq's full, non-turbo `whisper-large-v3` misdetected it a third way, as **Azerbaijani**, with a garbled transcript. Separately, two real production requests added a fourth and fifth Whisper failure: misdetected as Kazakh again, and separately as Kyrgyz.
+
+**A completely different ASR provider (AssemblyAI, not Whisper-based) was also tested and also failed - which changes the conclusion.** Auto-detection misdetected the same clip as **Georgian** - not even Turkic, breaking the "always a related language" pattern seen across every Whisper variant. Forcing `language_code="uz"` explicitly produced *consistent* output (byte-identical across repeat runs, unlike Whisper's decoding randomness on this same category of content) - but a native-speaker check of that output confirmed it was still wrong: real Uzbek vocabulary bent into what reads as Azerbaijani orthography and grammar (the schwa letter `ə` and the `-əcək` verb ending aren't part of Uzbek's Latin alphabet at all).
+
+**Eight real failure data points across two independent ASR technologies** (three Whisper variants x multiple runs, plus AssemblyAI auto and forced) confirmed this is a broader gap in mainstream ASR training data for Uzbek, not a Whisper-specific weakness - which is what eventually led to the fix below.
+
+### Uzbek transcription — fixed via a local fallback model
+
+A dedicated Uzbek-specific model (`Kotib/uzbek_stt_v1`, a community Whisper Medium fine-tune, 16.7% WER / 7.0% CER across 8 test sets) turned out to genuinely solve this, once converted to CTranslate2 format and run through `faster-whisper`:
+
+```
+ct2-transformers-converter --model Kotib/uzbek_stt_v1 \
+  --output_dir models/uzbek_asr \
+  --copy_files tokenizer_config.json preprocessor_config.json \
+  --quantization float16
+```
+
+The raw HuggingFace `transformers` version of this model was unusable on its own - 40-65 minutes to transcribe a 1-minute clip, even with Apple Silicon MPS acceleration. The CTranslate2 conversion runs the identical model at real-time-or-faster speed on CPU alone.
+
+`services/speech_service.py` now routes to this local model automatically, but **not** the same way the earlier reverted fix did. Instead of forcing Uzbek for every Uzbek-interface user (the approach that broke on genuinely English content - see above), the trigger is Groq's own detected language landing in the known misdetection cluster (`kk`, `ky`, `tr`, `fa`, `ka`, `az` - every language every real Uzbek misdetection has ever landed on, across all 8 prior failure points). This is evidence from the audio itself, not a stated preference, so it doesn't touch genuinely non-Uzbek content at all.
+
+Verified against real audio (not simulated): the same "Meni sev" song referenced above, and a separate spoken clip, both now correctly detected as Uzbek with coherent, accurate output, consistent across repeat runs - a real fix, not another false start.
 
 **A same-day fix was tried for Uzbek and then reverted before launch.** Forcing `language="uz"` in `transcribe_audio()` for users whose interface language is Uzbek did produce a dramatic improvement on one real test case (the same "Meni sev" audio went from unreadable Perso-Arabic gibberish to clearly readable, coherent lyrics). But further testing showed the underlying problem is deeper than language selection: **the exact same audio, with the exact same forced language, produced wildly different quality across separate runs** — one clean, one garbled — pointing to genuine randomness in Whisper's own decoding on hard/singing content, not something a language hint reliably fixes. Forcing also carried its own real cost: it measurably tripled processing time on music (~303s forced vs. ~92s auto-detect on the same song), and it would confidently mis-transcribe any genuinely non-Uzbek content a Uzbek-interface user shares, trading one failure mode for another rather than eliminating it. **This was confirmed live**: while the forcing fix was still deployed, a real user with the interface set to Uzbek sent several genuinely English videos, and each was force-transcribed as if it were Uzbek. Given the fix didn't reliably solve the real problem and introduced its own regression, it was reverted — Whisper's plain auto-detection is now used for all 4 interface languages, matching the original behavior.
 
@@ -149,11 +178,13 @@ Facebook links are detected (`utils/link_detector.py`) but only produce a "comin
 
 ### Cleanup can duplicate repeated/chant-like content — root cause known, not fixed
 
-The AI cleanup step's safety net checks for *dropped* content (via word-overlap ratio) but not *added* content. On a real test, a transcript containing a repeated chant ("USA!" x7) came back from cleanup with extra repetitions (8, then 11 on a re-run) — non-deterministic at first, which pointed at the Ollama call's decoding temperature (unset, defaulting to ~0.8 stochastic decoding).
+**Found on the original local Ollama setup (`qwen2.5:3b-instruct`); not yet retested against Groq's `openai/gpt-oss-120b`** (the replacement model - see [Why Groq instead of local inference](#why-groq-instead-of-local-inference)). The root cause described below is a prompt-structure issue, not a model-specific quirk, so it may well reproduce on any model given the same prompt - but that's an assumption until it's actually tested on a repetitive/chant-like transcript through the new pipeline.
 
-Setting `temperature=0.2` was tried as a fix (kept in the code — it's harmless and likely helps general run-to-run consistency) but **testing disproved the hypothesis**: at `temperature=0.2` the output became *deterministic* (13 "USA!"s every run) but still *wrong* — not just non-deterministic-wrong, consistently wrong. Testing `temperature=0.0` (fully greedy, zero randomness) against the exact production prompt produced the identical wrong result, ruling out decoding randomness as the cause entirely.
+The AI cleanup step's safety net checks for *dropped* content (via word-overlap ratio) but not *added* content. On a real test (on the old local setup), a transcript containing a repeated chant ("USA!" x7) came back from cleanup with extra repetitions (8, then 11 on a re-run) — non-deterministic at first, which pointed at the Ollama call's decoding temperature (unset, defaulting to ~0.8 stochastic decoding).
 
-The actual root cause: the prompt's paragraph-organization rules ("divide into 3-5 natural paragraphs... each paragraph 2-4 sentences... insert a blank line between paragraphs") cause the model to redistribute a repeated exclamation/chant across multiple "paragraphs," duplicating it in the process — confirmed by testing a version of the prompt without those rules, which produced the correct count. This is a genuine prompt/model interaction bug in `qwen2.5:3b-instruct`'s handling of repetitive input, not a sampling issue.
+Setting `temperature=0.2` was tried as a fix (kept in the Groq migration too — it's harmless and likely helps general run-to-run consistency) but **testing disproved the hypothesis**: at `temperature=0.2` the output became *deterministic* (13 "USA!"s every run) but still *wrong* — not just non-deterministic-wrong, consistently wrong. Testing `temperature=0.0` (fully greedy, zero randomness) against the exact production prompt produced the identical wrong result, ruling out decoding randomness as the cause entirely.
+
+The actual root cause: the prompt's paragraph-organization rules ("divide into 3-5 natural paragraphs... each paragraph 2-4 sentences... insert a blank line between paragraphs") cause the model to redistribute a repeated exclamation/chant across multiple "paragraphs," duplicating it in the process — confirmed by testing a version of the prompt without those rules, which produced the correct count. This is a genuine prompt/model interaction bug, not a sampling issue - and since the same prompt now goes to Groq's model unchanged, there's no particular reason to expect it's resolved.
 
 **Not fixed.** A real fix would need either an explicit anti-duplication rule in the prompt, softening the paragraph rules for short repetitive segments, or extending the safety net to compare word *counts* (not just overlap/presence) so it catches additions as well as drops. Impact so far has been cosmetic (an extra repeated exclamation) rather than semantic, but the safety net's blind spot to added/duplicated content is the real residual risk here — something could slip through undetected if a future case is less cosmetic than a repeated "USA!".
 

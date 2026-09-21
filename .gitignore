@@ -7,3 +7,7 @@ bot.db
 logs/
 .DS_Store
 .claude/
+# ~1.4GB CTranslate2-converted model (services/speech_service.py's Uzbek
+# fallback) - too large for git, and reproducible from the conversion
+# command documented there if this machine's copy is ever lost.
+models/
