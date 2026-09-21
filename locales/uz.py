@@ -57,6 +57,13 @@ TRANSCRIBING = [
     "✍️ Ovozni gaplarga aylantiryapman...",
     "✍️ Aytilganlarni aynan yozib olyapman...",
 ]
+
+TRANSCRIBING_UZBEK_FALLBACK = (
+    "🇺🇿 Bu oʻzbekcha koʻrinyapti — aniqroq natija uchun maxsus modelga "
+    "oʻtyapman. Uzunroq videolarda bu bir-ikki daqiqa vaqt olishi mumkin, "
+    "sabringiz uchun rahmat!"
+)
+
 CLEANING = [
     "✨ Matnni tozalayapman...",
     "✨ Notekisliklarni silliqlayapman...",

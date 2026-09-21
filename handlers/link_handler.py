@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import uuid
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
@@ -173,18 +174,37 @@ async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "tiktok": "TikTok",
         }[platform]
 
-        duration = await asyncio.to_thread(_get_duration_seconds, url)
+        try:
+            duration = await asyncio.to_thread(_get_duration_seconds, url)
 
-        if duration and duration > LONG_CONTENT_THRESHOLD_SECONDS:
-            context.user_data["pending_url"] = url
-            context.user_data["pending_platform"] = platform
-            context.user_data["pending_platform_name"] = platform_name
+            if duration and duration > LONG_CONTENT_THRESHOLD_SECONDS:
+                context.user_data["pending_url"] = url
+                context.user_data["pending_platform"] = platform
+                context.user_data["pending_platform_name"] = platform_name
 
-            await call_with_retry(
-                update.message.reply_text,
-                msg.long_content_warning(lang, duration / 60),
-                reply_markup=build_long_content_confirm_keyboard(lang)
-            )
+                # busy is deliberately left True here (not released in a
+                # finally below) - a pending confirm/cancel tap is still
+                # "something in flight" for this user, released either by
+                # _handle_confirm_long_content/_handle_cancel_long_content
+                # or by _process_link's own finally once that runs.
+                await call_with_retry(
+                    update.message.reply_text,
+                    msg.long_content_warning(lang, duration / 60),
+                    reply_markup=build_long_content_confirm_keyboard(lang)
+                )
+                return
+
+        except Exception:
+            # Anything here (duration lookup, or the warning message itself
+            # failing after exhausting retries - e.g. a transient network
+            # blip) previously left `busy` stuck True forever, since this
+            # whole section had no cleanup path of its own - only the
+            # actual processing pipeline below did. That silently locked
+            # the user out of ever sending another link until a manual bot
+            # restart, with no error shown to them at all.
+            logger.exception(f"Failed before processing could start for platform={platform}")
+            _mark_free(context)
+            await call_with_retry(update.message.reply_text, msg.t(lang, "ERROR_GENERIC"))
             return
 
         await _process_link(update.message, context, url, platform, platform_name, lang, update.effective_user.id)
@@ -207,6 +227,14 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
     """
 
     _mark_busy(context)
+
+    # Populated as the pipeline progresses, so the finally block below can
+    # clean up whichever of these actually got created before an error (or
+    # successful completion) - without this, every downloaded video and
+    # every extracted audio file accumulates in downloads/ forever, since
+    # nothing else ever removes them.
+    video_path = None
+    audio_path = None
 
     # One status message, edited in place through each processing step,
     # instead of sending a new message per step - keeps the chat from
@@ -295,19 +323,32 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
         # Blind auto-detection has repeatedly misdetected real Uzbek audio
         # as a linguistically-related-but-wrong language (Kazakh, Turkish,
         # Persian all observed on real content) - see README Known
-        # Limitations. A same-day fix forcing language="uz" for Uzbek-
-        # interface users was tried and DID help on one real case, but was
-        # reverted before launch: further testing showed the same audio
-        # produced wildly different quality across separate runs even with
-        # the language forced (Whisper's own decoding randomness on
-        # hard/singing content, not something the language hint fixes), and
-        # forcing still carried the tradeoff of misforcing genuinely
-        # non-Uzbek content for Uzbek-interface users. Superseded by the
-        # duration-based warning + /help disclaimer (see
-        # LONG_CONTENT_THRESHOLD_SECONDS below), which is honest about
-        # reliability without forcing anyone's language. Plain auto-detect
-        # for all 4 interface languages.
-        transcript, detected_language = await asyncio.to_thread(transcribe_audio, audio_path)
+        # Limitations. Plain Groq auto-detect still runs first for every
+        # language, same as before; transcribe_audio now transparently
+        # retries with a local Uzbek-specific model when Groq's own result
+        # lands in that known misdetection cluster (evidence from the
+        # audio itself, not from the user's interface language - unlike
+        # the earlier forced-uz attempt that was reverted for breaking on
+        # genuinely non-Uzbek content). That fallback is real local CPU
+        # work with no progress of its own to report, so the callback
+        # below updates the status message to explain the extra wait
+        # rather than leaving the user looking at "Transcribing..." with
+        # no sign anything is happening. asyncio.run_coroutine_threadsafe
+        # is required here (not a plain await) because transcribe_audio
+        # itself runs in a worker thread via asyncio.to_thread below, and
+        # the status message edit is a coroutine that must run back on the
+        # main event loop.
+        event_loop = asyncio.get_running_loop()
+
+        def _on_uzbek_fallback_start():
+            asyncio.run_coroutine_threadsafe(
+                call_with_retry(status_message.edit_text, msg.t(lang, "TRANSCRIBING_UZBEK_FALLBACK")),
+                event_loop
+            )
+
+        transcript, detected_language = await asyncio.to_thread(
+            transcribe_audio, audio_path, on_uzbek_fallback_start=_on_uzbek_fallback_start
+        )
 
         logger.info(f"Detected language: {detected_language}")
         logger.info(f"Raw transcript: {transcript}")
@@ -363,6 +404,15 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
         await call_with_retry(status_message.edit_text, error_reply_text)
 
     finally:
+        # Best-effort - a missing/already-removed file shouldn't mask
+        # whatever the actual pipeline result was.
+        for path in (video_path, audio_path):
+            if path and os.path.exists(path):
+                try:
+                    os.remove(path)
+                except OSError:
+                    logger.warning(f"Failed to remove temp file: {path}")
+
         _mark_free(context)
 
 
@@ -442,16 +492,23 @@ async def _handle_export(query, context, lang, data):
 
     os.makedirs(EXPORT_DIR, exist_ok=True)
 
+    # A per-request unique name - a fixed "transcript_{language}.pdf" name
+    # would be shared by every user exporting that language, so concurrent
+    # exports (real with concurrent_updates) could read or overwrite each
+    # other's file.
+    unique_id = uuid.uuid4().hex
+    filepath = None
+
     try:
         if data == "export_pdf":
-            filepath = os.path.join(EXPORT_DIR, f"transcript_{detected_language}.pdf")
+            filepath = os.path.join(EXPORT_DIR, f"transcript_{unique_id}.pdf")
             # language_code drives RTL/Arabic reshaping in export_to_pdf, so
             # it must match the TRANSCRIPT's own spoken language, not the
             # bot's interface language.
             await asyncio.to_thread(export_to_pdf, transcript, filepath, language_code=detected_language)
             caption = msg.export_ready_caption(lang, "pdf")
         else:
-            filepath = os.path.join(EXPORT_DIR, f"transcript_{detected_language}.txt")
+            filepath = os.path.join(EXPORT_DIR, f"transcript_{unique_id}.txt")
             await asyncio.to_thread(export_to_text, transcript, filepath)
             caption = msg.export_ready_caption(lang, "text")
 
@@ -465,6 +522,13 @@ async def _handle_export(query, context, lang, data):
     except Exception as error:
         logger.exception(f"Export failed: {type(error).__name__}: {error}")
         await call_with_retry(query.message.reply_text, msg.t(lang, "EXPORT_FAILED"))
+
+    finally:
+        if filepath and os.path.exists(filepath):
+            try:
+                os.remove(filepath)
+            except OSError:
+                logger.warning(f"Failed to remove export file: {filepath}")
 
 
 async def _handle_history_select(query, context, lang, transcript_id_raw):

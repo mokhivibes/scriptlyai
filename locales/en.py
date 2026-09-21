@@ -56,6 +56,18 @@ TRANSCRIBING = [
     "✍️ Turning the sound into sentences...",
     "✍️ Writing down exactly what's said...",
 ]
+
+# Shown only when Groq's detection lands on the Uzbek misdetection cluster
+# and the local Uzbek-specific fallback model kicks in (see
+# speech_service.py) - that step is real, uninterruptible CPU work that
+# can take over a minute on a full song, so this explains the extra wait
+# instead of leaving "Transcribing..." on screen with no sign of progress.
+TRANSCRIBING_UZBEK_FALLBACK = (
+    "🇺🇿 This sounds like Uzbek - switching to our specialized model for "
+    "better accuracy. This can take a minute or two on longer clips, "
+    "thanks for your patience!"
+)
+
 CLEANING = [
     "✨ Tidying up the transcript now...",
     "✨ Smoothing out the rough edges...",
