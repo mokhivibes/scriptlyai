@@ -4,11 +4,21 @@ from collections import Counter
 
 import requests
 
+from config import GROQ_API_KEY
+from utils.network_retry import call_sync_with_retry
+
 logger = logging.getLogger(__name__)
 
 
-OLLAMA_URL = "http://localhost:11434/api/generate"
-MODEL_NAME = "qwen2.5:3b-instruct"
+# Moved from a local Ollama server (qwen2.5:3b-instruct, needed ~2-3GB RAM
+# resident) to Groq's hosted API - tested against real Arabic content
+# before switching (the exact category qwen2.5 was originally chosen for,
+# after llama3.2:3b was rejected for fabricating Arabic output): produced a
+# correct, minimal edit (a single missing comma) in well under a second,
+# with no fabrication. Combined with speech_service.py's equivalent switch,
+# the bot no longer needs several GB of local RAM to run at all.
+GROQ_CHAT_URL = "https://api.groq.com/openai/v1/chat/completions"
+MODEL_NAME = "openai/gpt-oss-120b"
 
 # If the cleaned transcript shares fewer than this fraction of the raw
 # transcript's words, treat the cleanup as unreliable (likely fabrication,
@@ -142,9 +152,31 @@ def is_cleanup_trustworthy(raw_transcript: str, cleaned_transcript: str, min_ove
     return True
 
 
+def _call_groq_chat(prompt: str) -> str:
+    response = requests.post(
+        GROQ_CHAT_URL,
+        headers={"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"},
+        json={
+            "model": MODEL_NAME,
+            "messages": [{"role": "user", "content": prompt}],
+            # Low temperature, not the default (~0.8-1.0) stochastic
+            # decoding - found via real testing (on the previous local
+            # Ollama setup, same principle applies here) that default
+            # decoding lets a model hallucinate extra repetitions on
+            # chant-like/repetitive input. This is a correction task, not
+            # creative writing, so low temperature costs nothing here.
+            "temperature": 0.2,
+        },
+        timeout=60,
+    )
+
+    response.raise_for_status()
+    return response.json()["choices"][0]["message"]["content"]
+
+
 def clean_transcript(transcript: str):
     """
-    Clean a Whisper transcript using a local Ollama AI model.
+    Clean a Whisper transcript using a Groq-hosted AI model.
 
     The AI should correct transcription/grammar errors while
     preserving the original meaning and wording.
@@ -206,28 +238,7 @@ STRICT RULES:
 Return ONLY the cleaned and naturally formatted transcript.
 """
 
-    response = requests.post(
-        OLLAMA_URL,
-        json={
-            "model": MODEL_NAME,
-            "prompt": prompt,
-            "stream": False,
-            # Low temperature, not the default (~0.8) stochastic decoding -
-            # found via real testing that default decoding lets the model
-            # hallucinate extra repetitions on chant-like/repetitive input
-            # (a transcript with "USA!" x7 came back with 8, then 11 on a
-            # re-run, non-deterministically). This is a correction task, not
-            # creative writing, so low temperature costs nothing here.
-            "options": {"temperature": 0.2},
-        },
-        timeout=300,
-    )
-
-    response.raise_for_status()
-
-    result = response.json()
-
-    cleaned = result["response"].strip()
+    cleaned = call_sync_with_retry(_call_groq_chat, prompt).strip()
     if cleaned.startswith("IMPORTANT:"):
         cleaned = cleaned[len("IMPORTANT:"):].strip()
 
