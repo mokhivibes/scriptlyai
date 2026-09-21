@@ -13,9 +13,9 @@ LANGUAGE_CHANGED = (
 # every other formatted message in this file, which is 100% developer text.
 LANGUAGE_ONBOARDING = (
     "Привет, {first_name}! 👋 Отлично, буду говорить с тобой по-русски.\n\n"
-    "Просто пришли мне ссылку — 🎥 YouTube, 📸 Instagram, 🎵 TikTok или "
-    "✖️ X/Twitter — я расшифрую и приведу текст в порядок ✨. Нужна "
-    "копия? Сделаю PDF или текстовый файл. 📄\n\n"
+    "Просто пришли мне ссылку — 🎥 YouTube, 📸 Instagram, 🎵 TikTok, 📘 "
+    "Facebook или ✖️ X/Twitter — я расшифрую и приведу текст в порядок "
+    "✨. Нужна копия? Сделаю PDF или текстовый файл. 📄\n\n"
     "Присылай ссылку, чтобы начать, или набери /help, чтобы узнать больше."
 )
 
@@ -23,8 +23,8 @@ LANGUAGE_ONBOARDING = (
 # reason as LANGUAGE_ONBOARDING above.
 START_TEXT = (
     "Привет, {first_name}! 👋 Я ScriptlyAI.\n\n"
-    "Присылай мне ссылку на видео — 🎥 YouTube, 📸 Instagram, 🎵 TikTok "
-    "или ✖️ X/Twitter пока что — расшифрую, что там говорят, и приведу "
+    "Присылай мне ссылку на видео — 🎥 YouTube, 📸 Instagram, 🎵 TikTok, "
+    "📘 Facebook или ✖️ X/Twitter — расшифрую, что там говорят, и приведу "
     "текст в порядок. ✨ Нужна копия? Могу сделать PDF или текстовый "
     "файл. 📄\n\n"
     "Не понимаешь, как это работает? Просто набери /help."

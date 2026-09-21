@@ -13,9 +13,9 @@ LANGUAGE_CHANGED = (
 # every other formatted message in this file, which is 100% developer text.
 LANGUAGE_ONBOARDING = (
     "Hey {first_name}! 👋 Great, I'll speak English with you from now on.\n\n"
-    "Just send me a link — 🎥 YouTube, 📸 Instagram, 🎵 TikTok, or ✖️ "
-    "X/Twitter — and I'll transcribe it and clean it up ✨. Want a copy? "
-    "I can export it as a PDF or text file. 📄\n\n"
+    "Just send me a link — 🎥 YouTube, 📸 Instagram, 🎵 TikTok, 📘 Facebook, "
+    "or ✖️ X/Twitter — and I'll transcribe it and clean it up ✨. Want a "
+    "copy? I can export it as a PDF or text file. 📄\n\n"
     "Send a link to get started, or /help for the full picture."
 )
 
@@ -24,9 +24,9 @@ LANGUAGE_ONBOARDING = (
 # reason as LANGUAGE_ONBOARDING above.
 START_TEXT = (
     "Hey there, {first_name}! 👋 I'm ScriptlyAI.\n\n"
-    "Send me a video link — 🎥 YouTube, 📸 Instagram, 🎵 TikTok, or ✖️ "
-    "X/Twitter for now — and I'll turn what's said into clean, readable "
-    "text. ✨ Want a copy? I can export it as a PDF or text file. 📄\n\n"
+    "Send me a video link — 🎥 YouTube, 📸 Instagram, 🎵 TikTok, 📘 "
+    "Facebook, or ✖️ X/Twitter — and I'll turn what's said into clean, "
+    "readable text. ✨ Want a copy? I can export it as a PDF or text file. 📄\n\n"
     "Not sure how it works? Just type /help."
 )
 HELP_TEXT = (

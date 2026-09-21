@@ -13,9 +13,9 @@ LANGUAGE_CHANGED = (
 # every other formatted message in this file, which is 100% developer text.
 LANGUAGE_ONBOARDING = (
     "Salom, {first_name}! 👋 Ajoyib! Bundan buyon oʻzbekcha gaplashaman.\n\n"
-    "Menga havola yuboring — 🎥 YouTube, 📸 Instagram, 🎵 TikTok yoki ✖️ "
-    "X/Twitter — men uni yozib olib, tozalayman ✨. Nusxa kerakmi? PDF "
-    "yoki matn fayli qilib beraman. 📄\n\n"
+    "Menga havola yuboring — 🎥 YouTube, 📸 Instagram, 🎵 TikTok, 📘 "
+    "Facebook yoki ✖️ X/Twitter — men uni yozib olib, tozalayman ✨. "
+    "Nusxa kerakmi? PDF yoki matn fayli qilib beraman. 📄\n\n"
     "Boshlash uchun havola yuboring, yoki /help deb yozing."
 )
 
@@ -24,9 +24,9 @@ LANGUAGE_ONBOARDING = (
 START_TEXT = (
     "Salom, {first_name}! 👋 Men ScriptlyAI'man.\n\n"
     "Menga video havolasini yuboring — 🎥 YouTube, 📸 Instagram, 🎵 "
-    "TikTok yoki ✖️ X/Twitter hozircha — aytilganlarni toza va oʻqilishi "
-    "oson matnga aylantirib beraman. ✨ Nusxa kerakmi? PDF yoki matn "
-    "fayli qilib beraman. 📄\n\n"
+    "TikTok, 📘 Facebook yoki ✖️ X/Twitter — aytilganlarni toza va "
+    "oʻqilishi oson matnga aylantirib beraman. ✨ Nusxa kerakmi? PDF "
+    "yoki matn fayli qilib beraman. 📄\n\n"
     "Qanday ishlashini bilmayapsizmi? /help deb yozing."
 )
 HELP_TEXT = (
