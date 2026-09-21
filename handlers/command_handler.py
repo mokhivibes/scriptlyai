@@ -4,6 +4,7 @@ from telegram.ext import ContextTypes
 from database import get_transcripts_for_user, get_interface_language, set_interface_language
 from utils import messages as msg
 from utils.network_retry import call_with_retry
+from utils.stickers import STICKER_WELCOME
 
 HISTORY_LIMIT = 10
 
@@ -125,6 +126,7 @@ async def set_language_callback(update: Update, context: ContextTypes.DEFAULT_TY
         # after language selection completes, for either the first-time or
         # switching path.
         first_name = query.from_user.first_name or ""
+        await call_with_retry(query.message.reply_sticker, STICKER_WELCOME)
         await call_with_retry(
             query.message.reply_text,
             msg.welcome_text(language_code, first_name),

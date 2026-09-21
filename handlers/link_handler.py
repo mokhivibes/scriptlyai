@@ -18,6 +18,7 @@ from services.ai_cleanup_service import clean_transcript
 from services.export_service import export_to_pdf, export_to_text
 from database import add_transcript, get_transcript_by_id, get_interface_language
 from utils.network_retry import call_with_retry, call_sync_with_retry
+from utils.stickers import STICKER_PROCESSING, STICKER_DONE, STICKER_ERROR
 from handlers.command_handler import help_command, history_command, language_command
 
 logger = logging.getLogger(__name__)
@@ -240,6 +241,8 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
     # filling up with transient "still working on it" messages.
     # parse_mode is safe here: platform_name comes from the fixed dict
     # above (exactly 4 known values), never from unpredictable content.
+    await call_with_retry(message.reply_sticker, STICKER_PROCESSING)
+
     status_message = await call_with_retry(
         message.reply_text, msg.downloading_message(lang, platform_name), parse_mode="Markdown"
     )
@@ -373,6 +376,7 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
             transcript=cleaned_transcript
         )
 
+        await call_with_retry(message.reply_sticker, STICKER_DONE)
         await call_with_retry(message.reply_text, msg.t(lang, "TRANSCRIPT_HEADER"))
         await send_long_text(message, cleaned_transcript)
 
@@ -405,6 +409,7 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
         else:
             error_reply_text = msg.t(lang, "ERROR_GENERIC")
 
+        await call_with_retry(message.reply_sticker, STICKER_ERROR)
         await call_with_retry(status_message.edit_text, error_reply_text)
 
     finally:
