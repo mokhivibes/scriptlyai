@@ -105,6 +105,29 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 
+async def on_error(update: object, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Catches anything a handler doesn't already handle itself. The main
+    transcription pipeline (link_handler.py) has its own try/except with
+    user-facing error messages, but other handlers - /history, /language,
+    the export/history callback buttons - didn't have an equivalent safety
+    net: an unexpected exception there would be logged by PTB internally
+    at best, with the user seeing nothing at all. This makes every handler
+    fail the same way: logged loudly, and the user told something went
+    wrong instead of silence.
+    """
+
+    logger.error("Unhandled exception while processing an update", exc_info=context.error)
+
+    if isinstance(update, Update) and update.effective_message:
+        user_id = update.effective_user.id if update.effective_user else None
+        lang = (get_interface_language(user_id) if user_id else None) or msg.DEFAULT_LANGUAGE
+        try:
+            await call_with_retry(update.effective_message.reply_text, msg.t(lang, "ERROR_GENERIC"))
+        except Exception:
+            logger.exception("Failed to notify the user about the error above")
+
+
 def main():
     setup_logging()
 
@@ -145,6 +168,8 @@ def main():
     # for matching callback_data.
     application.add_handler(CallbackQueryHandler(set_language_callback, pattern="^setlang_"))
     application.add_handler(CallbackQueryHandler(handle_callback_query))
+
+    application.add_error_handler(on_error)
 
     logger.info("Bot is starting...")
 
