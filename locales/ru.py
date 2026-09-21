@@ -30,11 +30,10 @@ START_TEXT = (
     "Не понимаешь, как это работает? Просто набери /help."
 )
 HELP_TEXT = (
-    "Присылай ссылку на *YouTube*, *Instagram*, *TikTok* или *X/Twitter* — я "
-    "прослушаю, всё запишу и отдам тебе в чистом виде.\n"
+    "Присылай ссылку на *YouTube*, *Instagram*, *TikTok*, *Facebook* или "
+    "*X/Twitter* — я прослушаю, всё запишу и отдам тебе в чистом виде.\n"
     "Нужна копия? Могу сделать PDF или текстовый файл. Лучше всего работаю "
     "с речью — с песнями может быть медленнее и не так точно.\n\n"
-    "_Facebook скоро подключу — потерпи!_\n\n"
     "/history — посмотреть прошлые расшифровки. /language — сменить язык "
     "общения. /cancel — начать заново. /start — поздороваться ещё раз."
 )
@@ -81,12 +80,11 @@ EXPORT_LABEL_TRANSCRIPT = "расшифровка"
 FILE_FORMAT_PDF = "PDF"
 FILE_FORMAT_TEXT = "текстовый файл"
 
-NO_LINK_FOUND = "Хм, я не вижу здесь ссылки — пришли ссылку на YouTube, Instagram, TikTok или X/Twitter, и я начну."
+NO_LINK_FOUND = "Хм, я не вижу здесь ссылки — пришли ссылку на YouTube, Instagram, TikTok, Facebook или X/Twitter, и я начну."
 UNRECOGNIZED_LINK = (
     "Не узнаю эту ссылку. Я работаю с YouTube, Instagram, TikTok, "
     "Facebook или X/Twitter — попробуй одну из них."
 )
-FACEBOOK_PLACEHOLDER = "Вижу ссылку на Facebook, но пока не умею с ними работать — скоро научусь!"
 
 ERROR_PRIVATE = (
     "Похоже, это закрытый аккаунт или видео — я могу доставать только то, "
@@ -141,6 +139,7 @@ PLATFORM_LABELS = {
     "instagram": "📸 Instagram",
     "twitter": "✖️ X/Twitter",
     "tiktok": "🎵 TikTok",
+    "facebook": "📘 Facebook",
 }
 
 TARGET_LANGUAGE_NAMES = {

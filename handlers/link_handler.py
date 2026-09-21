@@ -12,6 +12,7 @@ from utils import messages as msg
 from services.youtube_service import download_youtube_video
 from services.twitter_service import download_twitter_video
 from services.tiktok_service import download_tiktok_video
+from services.facebook_service import download_facebook_video
 from services.audio_service import extract_audio
 from services.ai_cleanup_service import clean_transcript
 from services.export_service import export_to_pdf, export_to_text
@@ -155,7 +156,7 @@ async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     platform = detect_platform(url)
 
-    if platform in ("youtube", "instagram", "twitter", "tiktok"):
+    if platform in ("youtube", "instagram", "twitter", "tiktok", "facebook"):
         # Marked busy synchronously, BEFORE the duration lookup below awaits
         # anything - the lookup is a real await point, and leaving busy
         # unset until after it would reopen exactly the race the busy-guard
@@ -172,6 +173,7 @@ async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "instagram": "Instagram",
             "twitter": "X/Twitter",
             "tiktok": "TikTok",
+            "facebook": "Facebook",
         }[platform]
 
         try:
@@ -208,9 +210,6 @@ async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         await _process_link(update.message, context, url, platform, platform_name, lang, update.effective_user.id)
-
-    elif platform == "facebook":
-        await call_with_retry(update.message.reply_text, msg.t(lang, "FACEBOOK_PLACEHOLDER"))
 
     else:
         await call_with_retry(update.message.reply_text, msg.t(lang, "UNRECOGNIZED_LINK"))
@@ -271,6 +270,11 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
         elif platform == "tiktok":
             video_path, video_title = await asyncio.to_thread(
                 call_sync_with_retry, download_tiktok_video, url
+            )
+
+        elif platform == "facebook":
+            video_path, video_title = await asyncio.to_thread(
+                call_sync_with_retry, download_facebook_video, url
             )
 
         elif platform == "instagram":

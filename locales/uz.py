@@ -30,13 +30,12 @@ START_TEXT = (
     "Qanday ishlashini bilmayapsizmi? /help deb yozing."
 )
 HELP_TEXT = (
-    "Menga *YouTube*, *Instagram*, *TikTok* yoki *X/Twitter* havolasini "
-    "yuboring — men uni tinglab, hammasini yozib olib, toza holda "
-    "qaytarib beraman.\n"
+    "Menga *YouTube*, *Instagram*, *TikTok*, *Facebook* yoki *X/Twitter* "
+    "havolasini yuboring — men uni tinglab, hammasini yozib olib, toza "
+    "holda qaytarib beraman.\n"
     "Nusxa kerakmi? PDF yoki matn fayli qilib bera olaman. Nutqli kontent "
     "bilan yaxshiroq ishlayman — qoʻshiqlar bilan sekinroq va aniqligi "
     "pastroq boʻlishi mumkin.\n\n"
-    "_Facebook tez orada qoʻshiladi — biroz kuting!_\n\n"
     "/history — oldingi matnlaringizni koʻrish. /language — til "
     "sozlamasini oʻzgartirish. /cancel — bekor qilish va boshidan boshlash. "
     "/start — yana salomlashish."
@@ -82,12 +81,11 @@ EXPORT_LABEL_TRANSCRIPT = "tozalangan matn"
 FILE_FORMAT_PDF = "PDF"
 FILE_FORMAT_TEXT = "matn fayli"
 
-NO_LINK_FOUND = "Bu yerda havola koʻrinmayapti — YouTube, Instagram, TikTok yoki X/Twitter havolasini yuboring, boshlaymiz."
+NO_LINK_FOUND = "Bu yerda havola koʻrinmayapti — YouTube, Instagram, TikTok, Facebook yoki X/Twitter havolasini yuboring, boshlaymiz."
 UNRECOGNIZED_LINK = (
     "Bu havolani tanimadim. Men YouTube, Instagram, TikTok, Facebook yoki "
     "X/Twitter havolalari bilan ishlayman — shulardan birini sinab koʻring."
 )
-FACEBOOK_PLACEHOLDER = "Bu Facebook havolasi ekanini koʻryapman, lekin hali ular bilan ishlay olmayman — tez orada boʻladi!"
 
 ERROR_PRIVATE = (
     "Bu yopiq (private) akkaunt yoki video koʻrinyapti — men faqat ochiq "
@@ -140,6 +138,7 @@ PLATFORM_LABELS = {
     "instagram": "📸 Instagram",
     "twitter": "✖️ X/Twitter",
     "tiktok": "🎵 TikTok",
+    "facebook": "📘 Facebook",
 }
 
 TARGET_LANGUAGE_NAMES = {

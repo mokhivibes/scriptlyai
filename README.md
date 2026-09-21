@@ -6,7 +6,7 @@ Transcription and cleanup run on [Groq's](https://groq.com) hosted API, on its f
 
 ## Features
 
-- **Platforms:** YouTube, Instagram, X/Twitter, TikTok (network-permitting — see [Known Limitations](#known-limitations)).
+- **Platforms:** YouTube, Instagram, X/Twitter, TikTok (network-permitting — see [Known Limitations](#known-limitations)), Facebook.
 - **Pipeline:** download → extract audio → transcribe (Groq-hosted Whisper) → clean up (Groq-hosted LLM) → export (PDF/text).
 - **Interface localization:** every bot-facing string (not just the transcript) is available in English, Russian, Arabic, and Uzbek, chosen via `/language` and saved per user.
 - **History:** `/history` lists your last 10 transcripts; tap one to reopen it and re-export.
@@ -172,9 +172,9 @@ Verified against real audio (not simulated): the same "Meni sev" song referenced
 
 TikTok is unreachable from the current dev machine: DNS resolves and a raw TCP handshake to port 443 succeeds, but the actual HTTPS request hangs and times out — consistent with ISP-level deep packet inspection (DPI) filtering, not a code, DNS, or VPN configuration issue. The code path (`services/tiktok_service.py`) mirrors the working X/Twitter implementation and has explicit retry logic, but has never been exercised against a real TikTok URL. Relevant to hosting location if this is deployed elsewhere.
 
-### Facebook — not implemented
+### Facebook — implemented, superseding an earlier "permanent exclusion" note
 
-Facebook links are detected (`utils/link_detector.py`) but only produce a "coming soon" placeholder — there is no `facebook_service.py`. This is a permanent exclusion for now due to upstream video-extractor reliability issues with Facebook specifically, not a temporary gap like TikTok's network block.
+This section previously said Facebook support was permanently excluded due to upstream video-extractor reliability issues. That was re-tested against a real Facebook Reel share link before implementing `services/facebook_service.py` (mirroring `twitter_service.py`'s pattern): download, audio extraction, and transcription all worked cleanly end-to-end, correct title and language detected. Whatever reliability issue prompted the original exclusion appears to have been resolved upstream in `yt-dlp` since then. Only tested against one real link so far (a Reel); regular Facebook Watch/post links use a related but distinct extractor path in `yt-dlp` and haven't been separately verified.
 
 ### Cleanup can duplicate repeated/chant-like content — root cause known, not fixed
 

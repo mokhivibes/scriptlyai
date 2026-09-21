@@ -30,12 +30,12 @@ START_TEXT = (
     "Not sure how it works? Just type /help."
 )
 HELP_TEXT = (
-    "Send me a *YouTube*, *Instagram*, *TikTok*, or *X/Twitter* link and I'll "
-    "listen to it, write it all down, and hand it back to you clean.\n"
+    "Send me a *YouTube*, *Instagram*, *TikTok*, *Facebook*, or *X/Twitter* "
+    "link and I'll listen to it, write it all down, and hand it back to "
+    "you clean.\n"
     "Want a copy to keep? I can export it as a PDF or text file. Works best "
     "on spoken content — music or singing can take longer and come out "
     "less accurate.\n\n"
-    "_Facebook is on the way — hang tight!_\n\n"
     "/history to revisit past transcripts. /language to change how I talk to you. "
     "/cancel to start over. /start to say hi again."
 )
@@ -89,13 +89,11 @@ FILE_FORMAT_PDF = "PDF"
 FILE_FORMAT_TEXT = "text file"
 
 # --- Link handling ---
-NO_LINK_FOUND = "Hmm, I don't see a link in there — send me a YouTube, Instagram, TikTok, or X/Twitter link and I'll get started."
+NO_LINK_FOUND = "Hmm, I don't see a link in there — send me a YouTube, Instagram, TikTok, Facebook, or X/Twitter link and I'll get started."
 UNRECOGNIZED_LINK = (
     "I don't recognize that link. I work with YouTube, Instagram, TikTok, "
     "Facebook, or X/Twitter links — try one of those."
 )
-FACEBOOK_PLACEHOLDER = "I spotted a Facebook link, but I can't handle those just yet — coming soon though!"
-
 # --- Errors (no emojis - clarity comes first when something's gone wrong) ---
 ERROR_PRIVATE = (
     "This looks like a private account or video — I can only grab stuff "
@@ -154,6 +152,7 @@ PLATFORM_LABELS = {
     "instagram": "📸 Instagram",
     "twitter": "✖️ X/Twitter",
     "tiktok": "🎵 TikTok",
+    "facebook": "📘 Facebook",
 }
 
 # Display names for the video's SPOKEN (detected) language, shown in
