@@ -145,14 +145,14 @@ async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = _lang(update.effective_user.id)
 
     if _is_busy(context):
-        await call_with_retry(update.message.reply_text, msg.t(lang, "STILL_WORKING"))
+        await call_with_retry(update.message.reply_text, msg.t(lang, "STILL_WORKING"), parse_mode="Markdown")
         return
 
     text = update.message.text
     url = extract_url(text)
 
     if not url:
-        await call_with_retry(update.message.reply_text, msg.t(lang, "NO_LINK_FOUND"))
+        await call_with_retry(update.message.reply_text, msg.t(lang, "NO_LINK_FOUND"), parse_mode="Markdown")
         return
 
     platform = detect_platform(url)
@@ -193,6 +193,7 @@ async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await call_with_retry(
                     update.message.reply_text,
                     msg.long_content_warning(lang, duration / 60),
+                    parse_mode="Markdown",
                     reply_markup=build_long_content_confirm_keyboard(lang)
                 )
                 return
@@ -207,13 +208,13 @@ async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # restart, with no error shown to them at all.
             logger.exception(f"Failed before processing could start for platform={platform}")
             _mark_free(context)
-            await call_with_retry(update.message.reply_text, msg.t(lang, "ERROR_GENERIC"))
+            await call_with_retry(update.message.reply_text, msg.t(lang, "ERROR_GENERIC"), parse_mode="Markdown")
             return
 
         await _process_link(update.message, context, url, platform, platform_name, lang, update.effective_user.id)
 
     else:
-        await call_with_retry(update.message.reply_text, msg.t(lang, "UNRECOGNIZED_LINK"))
+        await call_with_retry(update.message.reply_text, msg.t(lang, "UNRECOGNIZED_LINK"), parse_mode="Markdown")
 
 
 async def _process_link(message, context, url, platform, platform_name, lang, user_id):
@@ -309,7 +310,7 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
 
         logger.info(f"Video downloaded: {video_path}")
 
-        await call_with_retry(status_message.edit_text, msg.extracting_audio_message(lang))
+        await call_with_retry(status_message.edit_text, msg.extracting_audio_message(lang), parse_mode="Markdown")
 
         audio_path = await asyncio.to_thread(extract_audio, video_path)
 
@@ -323,7 +324,7 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
                 caption=msg.t(lang, "AUDIO_CAPTION")
             )
 
-        await call_with_retry(status_message.edit_text, msg.transcribing_message(lang))
+        await call_with_retry(status_message.edit_text, msg.transcribing_message(lang), parse_mode="Markdown")
 
         from services.speech_service import transcribe_audio
 
@@ -349,7 +350,11 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
 
         def _on_uzbek_fallback_start():
             asyncio.run_coroutine_threadsafe(
-                call_with_retry(status_message.edit_text, msg.t(lang, "TRANSCRIBING_UZBEK_FALLBACK")),
+                call_with_retry(
+                    status_message.edit_text,
+                    msg.t(lang, "TRANSCRIBING_UZBEK_FALLBACK"),
+                    parse_mode="Markdown"
+                ),
                 event_loop
             )
 
@@ -360,7 +365,7 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
         logger.info(f"Detected language: {detected_language}")
         logger.info(f"Raw transcript: {transcript}")
 
-        await call_with_retry(status_message.edit_text, msg.cleaning_message(lang))
+        await call_with_retry(status_message.edit_text, msg.cleaning_message(lang), parse_mode="Markdown")
 
         cleaned_transcript = await asyncio.to_thread(clean_transcript, transcript)
         logger.info(f"Cleaned transcript: {cleaned_transcript}")
@@ -377,7 +382,7 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
         )
 
         await call_with_retry(message.reply_sticker, STICKER_DONE)
-        await call_with_retry(message.reply_text, msg.t(lang, "TRANSCRIPT_HEADER"))
+        await call_with_retry(message.reply_text, msg.t(lang, "TRANSCRIPT_HEADER"), parse_mode="Markdown")
         await send_long_text(message, cleaned_transcript)
 
         await call_with_retry(
@@ -410,7 +415,7 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
             error_reply_text = msg.t(lang, "ERROR_GENERIC")
 
         await call_with_retry(message.reply_sticker, STICKER_ERROR)
-        await call_with_retry(status_message.edit_text, error_reply_text)
+        await call_with_retry(status_message.edit_text, error_reply_text, parse_mode="Markdown")
 
     finally:
         # Best-effort - a missing/already-removed file shouldn't mask
@@ -446,7 +451,7 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         return
 
     if _is_busy(context):
-        await call_with_retry(query.message.reply_text, msg.t(lang, "STILL_WORKING"))
+        await call_with_retry(query.message.reply_text, msg.t(lang, "STILL_WORKING"), parse_mode="Markdown")
         return
 
     _mark_busy(context)
@@ -470,7 +475,7 @@ async def _handle_confirm_long_content(query, context, lang):
         # original link came in) rather than leaving the user stuck, and
         # ask for the link again.
         _mark_free(context)
-        await call_with_retry(query.message.reply_text, msg.t(lang, "NO_LINK_FOUND"))
+        await call_with_retry(query.message.reply_text, msg.t(lang, "NO_LINK_FOUND"), parse_mode="Markdown")
         return
 
     # busy is already True from when the original link triggered the
@@ -488,7 +493,7 @@ async def _handle_cancel_long_content(query, context, lang):
     # nothing actually in flight to resolve it.
     _mark_free(context)
 
-    await call_with_retry(query.message.reply_text, msg.t(lang, "PROCESSING_CANCELLED"))
+    await call_with_retry(query.message.reply_text, msg.t(lang, "PROCESSING_CANCELLED"), parse_mode="Markdown")
 
 
 async def _handle_export(query, context, lang, data):
@@ -496,7 +501,7 @@ async def _handle_export(query, context, lang, data):
     detected_language = context.user_data.get("detected_language", "en")
 
     if not transcript:
-        await call_with_retry(query.message.reply_text, msg.t(lang, "NO_TRANSCRIPT_SAVED"))
+        await call_with_retry(query.message.reply_text, msg.t(lang, "NO_TRANSCRIPT_SAVED"), parse_mode="Markdown")
         return
 
     os.makedirs(EXPORT_DIR, exist_ok=True)
@@ -530,7 +535,7 @@ async def _handle_export(query, context, lang, data):
 
     except Exception as error:
         logger.exception(f"Export failed: {type(error).__name__}: {error}")
-        await call_with_retry(query.message.reply_text, msg.t(lang, "EXPORT_FAILED"))
+        await call_with_retry(query.message.reply_text, msg.t(lang, "EXPORT_FAILED"), parse_mode="Markdown")
 
     finally:
         if filepath and os.path.exists(filepath):
@@ -544,13 +549,13 @@ async def _handle_history_select(query, context, lang, transcript_id_raw):
     try:
         transcript_id = int(transcript_id_raw)
     except ValueError:
-        await call_with_retry(query.message.reply_text, msg.t(lang, "HISTORY_NOT_FOUND"))
+        await call_with_retry(query.message.reply_text, msg.t(lang, "HISTORY_NOT_FOUND"), parse_mode="Markdown")
         return
 
     row = get_transcript_by_id(transcript_id, query.from_user.id)
 
     if not row:
-        await call_with_retry(query.message.reply_text, msg.t(lang, "HISTORY_NOT_FOUND"))
+        await call_with_retry(query.message.reply_text, msg.t(lang, "HISTORY_NOT_FOUND"), parse_mode="Markdown")
         return
 
     _id, platform, detected_language, title, transcript_text, created_at = row
@@ -566,7 +571,7 @@ async def _handle_history_select(query, context, lang, transcript_id_raw):
         query.message.reply_text, msg.history_selected_info(lang, title, platform, detected_language, short_date)
     )
 
-    await call_with_retry(query.message.reply_text, msg.t(lang, "TRANSCRIPT_HEADER"))
+    await call_with_retry(query.message.reply_text, msg.t(lang, "TRANSCRIPT_HEADER"), parse_mode="Markdown")
     await send_long_text(query.message, transcript_text)
 
     await call_with_retry(

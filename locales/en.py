@@ -84,7 +84,7 @@ TRANSCRIBING = [
 # can take over a minute on a full song, so this explains the extra wait
 # instead of leaving "Transcribing..." on screen with no sign of progress.
 TRANSCRIBING_UZBEK_FALLBACK = (
-    "🇺🇿 This sounds like Uzbek - switching to our specialized model for "
+    "🇺🇿 This sounds like Uzbek - switching to our *specialized model* for "
     "better accuracy. This can take a minute or two on longer clips, "
     "thanks for your patience!"
 )
@@ -96,7 +96,7 @@ CLEANING = [
 ]
 
 # --- Delivery messages ---
-TRANSCRIPT_HEADER = "Here's the full transcript, cleaned up and ready:"
+TRANSCRIPT_HEADER = "Here's the full transcript, *cleaned up and ready*:"
 AUDIO_CAPTION = "Here's the audio I pulled out 🎧"
 
 # --- Export options ---
@@ -110,49 +110,49 @@ FILE_FORMAT_PDF = "PDF"
 FILE_FORMAT_TEXT = "text file"
 
 # --- Link handling ---
-NO_LINK_FOUND = "Hmm, I don't see a link in there — send me a YouTube, Instagram, TikTok, Facebook, or X/Twitter link and I'll get started."
+NO_LINK_FOUND = "Hmm, I don't see a link in there — send me a *YouTube*, *Instagram*, *TikTok*, *Facebook*, or *X/Twitter* link and I'll get started."
 UNRECOGNIZED_LINK = (
-    "I don't recognize that link. I work with YouTube, Instagram, TikTok, "
-    "Facebook, or X/Twitter links — try one of those."
+    "I don't recognize that link. I work with *YouTube*, *Instagram*, "
+    "*TikTok*, *Facebook*, or *X/Twitter* links — try one of those."
 )
 # --- Errors (no emojis - clarity comes first when something's gone wrong) ---
 ERROR_PRIVATE = (
-    "This looks like a private account or video — I can only grab stuff "
+    "This looks like a *private* account or video — I can only grab stuff "
     "that's public. If you can make it public, send me the link again."
 )
 ERROR_UNAVAILABLE = (
-    "I couldn't find this video — it might be deleted, private, or blocked "
-    "in some regions. Double check the link and try again?"
+    "I couldn't find this video — it might be *deleted*, *private*, or "
+    "*blocked* in some regions. Double check the link and try again?"
 )
 ERROR_TIMEOUT = (
-    "This one took too long to load — sometimes that happens with a slow "
+    "This one took *too long* to load — sometimes that happens with a slow "
     "connection or a big file. Mind trying again?"
 )
-ERROR_NETWORK = "Looks like a network hiccup got in the way. Send the link again and let's try that one more time."
+ERROR_NETWORK = "Looks like a *network hiccup* got in the way. Send the link again and let's try that one more time."
 ERROR_TOO_LARGE = (
-    "This file's too big for me to send back through Telegram right now, "
+    "This file's *too big* for me to send back through Telegram right now, "
     "sorry about that. Maybe try a shorter clip?"
 )
 ERROR_GENERIC = (
-    "Something went wrong on my end and I couldn't process this one. "
+    "*Something went wrong* on my end and I couldn't process this one. "
     "Double check the link's valid and public, then give it another go?"
 )
-ERROR_NO_VIDEO = "This post doesn't seem to have a video in it — I can only work with posts that include one."
-ERROR_NO_AUDIO = "This video doesn't seem to have any sound in it — I can only work with videos that include audio."
+ERROR_NO_VIDEO = "This post doesn't seem to have a *video* in it — I can only work with posts that include one."
+ERROR_NO_AUDIO = "This video doesn't seem to have any *sound* in it — I can only work with videos that include audio."
 
 NO_TRANSCRIPT_SAVED = "I don't have that transcript anymore — send me the link again and we'll start fresh."
-STILL_WORKING = "Still working on your last one — give me a moment to finish that first!"
+STILL_WORKING = "*Still working* on your last one — give me a moment to finish that first!"
 
 # --- Long-content confirmation (duration-based, shown before committing to
 # a multi-minute job) ---
 LONG_CONTENT_WARNING = (
-    "This looks like a longer one (~{minutes} min) — transcription can take "
-    "several minutes, and results are less reliable for music/singing than "
-    "speech. Want me to go ahead?"
+    "This looks like a *longer one* (~{minutes} min) — transcription can "
+    "take several minutes, and results are less reliable for music/singing "
+    "than speech. Want me to go ahead?"
 )
 CONFIRM_YES_BUTTON = "✅ Yes, go ahead"
 CONFIRM_NO_BUTTON = "❌ Cancel"
-PROCESSING_CANCELLED = "No worries — cancelled. Send another link whenever you're ready."
+PROCESSING_CANCELLED = "No worries — *cancelled*. Send another link whenever you're ready."
 
 # --- /cancel ---
 CANCEL_HAD_DATA = (
@@ -165,7 +165,7 @@ CANCEL_NOTHING = "*Nothing to cancel* right now — I'm just here waiting. Send 
 
 # --- /history ---
 HISTORY_HEADER = "Here's your last few transcripts — tap one to see it again:"
-HISTORY_EMPTY = "You don't have any transcripts yet — send me a YouTube or Instagram link and it'll show up here next time."
+HISTORY_EMPTY = "You don't have any transcripts yet — send me a *YouTube* or *Instagram* link and it'll show up here next time."
 HISTORY_NOT_FOUND = "Hmm, I couldn't find that one anymore — it may be too old or already gone. Try /history again."
 
 PLATFORM_LABELS = {

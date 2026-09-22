@@ -69,7 +69,7 @@ async def history_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     rows = get_transcripts_for_user(update.effective_user.id, limit=HISTORY_LIMIT)
 
     if not rows:
-        await call_with_retry(update.message.reply_text, msg.t(lang, "HISTORY_EMPTY"))
+        await call_with_retry(update.message.reply_text, msg.t(lang, "HISTORY_EMPTY"), parse_mode="Markdown")
         return
 
     keyboard = []

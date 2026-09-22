@@ -78,7 +78,7 @@ TRANSCRIBING = [
 ]
 
 TRANSCRIBING_UZBEK_FALLBACK = (
-    "🇺🇿 Bu oʻzbekcha koʻrinyapti — aniqroq natija uchun maxsus modelga "
+    "🇺🇿 Bu oʻzbekcha koʻrinyapti — aniqroq natija uchun *maxsus modelga* "
     "oʻtyapman. Uzunroq videolarda bu bir-ikki daqiqa vaqt olishi mumkin, "
     "sabringiz uchun rahmat!"
 )
@@ -89,7 +89,7 @@ CLEANING = [
     "✨ Matnga oxirgi tafsilotlarni qoʻshyapman...",
 ]
 
-TRANSCRIPT_HEADER = "Mana toza va tayyor toʻliq matn:"
+TRANSCRIPT_HEADER = "Mana *toza va tayyor* toʻliq matn:"
 AUDIO_CAPTION = "Mana men ajratib olgan audio 🎧"
 
 EXPORT_PDF_BUTTON = "📄 PDF"
@@ -101,45 +101,46 @@ EXPORT_LABEL_TRANSCRIPT = "tozalangan matn"
 FILE_FORMAT_PDF = "PDF"
 FILE_FORMAT_TEXT = "matn fayli"
 
-NO_LINK_FOUND = "Bu yerda havola koʻrinmayapti — YouTube, Instagram, TikTok, Facebook yoki X/Twitter havolasini yuboring, boshlaymiz."
+NO_LINK_FOUND = "Bu yerda havola koʻrinmayapti — *YouTube*, *Instagram*, *TikTok*, *Facebook* yoki *X/Twitter* havolasini yuboring, boshlaymiz."
 UNRECOGNIZED_LINK = (
-    "Bu havolani tanimadim. Men YouTube, Instagram, TikTok, Facebook yoki "
-    "X/Twitter havolalari bilan ishlayman — shulardan birini sinab koʻring."
+    "Bu havolani tanimadim. Men *YouTube*, *Instagram*, *TikTok*, "
+    "*Facebook* yoki *X/Twitter* havolalari bilan ishlayman — shulardan "
+    "birini sinab koʻring."
 )
 
 ERROR_PRIVATE = (
-    "Bu yopiq (private) akkaunt yoki video koʻrinyapti — men faqat ochiq "
+    "Bu *yopiq (private)* akkaunt yoki video koʻrinyapti — men faqat ochiq "
     "kontent bilan ishlay olaman. Uni ochiq qilsangiz, havolani qayta yuboring."
 )
 ERROR_UNAVAILABLE = (
-    "Bu videoni topa olmadim — balki oʻchirilgan, yopiq yoki baʼzi "
-    "hududlarda toʻsilgan boʻlishi mumkin. Havolani tekshirib, qayta "
+    "Bu videoni topa olmadim — balki *oʻchirilgan*, *yopiq* yoki baʼzi "
+    "hududlarda *toʻsilgan* boʻlishi mumkin. Havolani tekshirib, qayta "
     "urinib koʻrasizmi?"
 )
 ERROR_TIMEOUT = (
-    "Bu juda uzoq yuklandi — bu sekin internet yoki katta fayl bilan "
+    "Bu *juda uzoq* yuklandi — bu sekin internet yoki katta fayl bilan "
     "boʻlishi mumkin. Qayta urinib koʻrasizmi?"
 )
-ERROR_NETWORK = "Tarmoqda muammo boʻldi shekilli. Havolani qayta yuboring, yana urinib koʻramiz."
-ERROR_TOO_LARGE = "Bu fayl hozir Telegram orqali yuborish uchun juda katta, uzr. Balki qisqaroq video sinab koʻrasiz?"
+ERROR_NETWORK = "*Tarmoqda muammo* boʻldi shekilli. Havolani qayta yuboring, yana urinib koʻramiz."
+ERROR_TOO_LARGE = "Bu fayl hozir Telegram orqali yuborish uchun *juda katta*, uzr. Balki qisqaroq video sinab koʻrasiz?"
 ERROR_GENERIC = (
-    "Mening tomonimda nimadir xato ketdi va buni qayta ishlay olmadim. "
+    "*Mening tomonimda nimadir xato ketdi* va buni qayta ishlay olmadim. "
     "Havola toʻgʻri va ochiq ekanini tekshirib, yana urinib koʻrasizmi?"
 )
-ERROR_NO_VIDEO = "Bu postda video yoʻqday koʻrinadi — men faqat video boʻlgan postlar bilan ishlayman."
-ERROR_NO_AUDIO = "Bu videoda ovoz yoʻqday koʻrinadi — men faqat ovozi bor videolar bilan ishlayman."
+ERROR_NO_VIDEO = "Bu postda *video* yoʻqday koʻrinadi — men faqat video boʻlgan postlar bilan ishlayman."
+ERROR_NO_AUDIO = "Bu videoda *ovoz* yoʻqday koʻrinadi — men faqat ovozi bor videolar bilan ishlayman."
 
 NO_TRANSCRIPT_SAVED = "Bu matn endi mendan yoʻqoldi — havolani qayta yuboring, yangidan boshlaymiz."
-STILL_WORKING = "Hali oldingi soʻrovingiz ustida ishlayapman — uni tugatishga biroz vaqt bering!"
+STILL_WORKING = "*Hali oldingi soʻrovingiz* ustida ishlayapman — uni tugatishga biroz vaqt bering!"
 
 LONG_CONTENT_WARNING = (
-    "Bu birozroq uzunroq koʻrinadi (~{minutes} daqiqa) — matnga aylantirish "
+    "Bu birozroq *uzunroq* koʻrinadi (~{minutes} daqiqa) — matnga aylantirish "
     "bir necha daqiqa vaqt olishi mumkin, qoʻshiqlar uchun natija nutqqa "
     "qaraganda unchalik aniq boʻlmasligi mumkin. Davom etaymi?"
 )
 CONFIRM_YES_BUTTON = "✅ Ha, davom et"
 CONFIRM_NO_BUTTON = "❌ Bekor qilish"
-PROCESSING_CANCELLED = "Boʻldi, bekor qilindi. Tayyor boʻlganingizda boshqa havola yuboring."
+PROCESSING_CANCELLED = "Boʻldi, *bekor qilindi*. Tayyor boʻlganingizda boshqa havola yuboring."
 
 CANCEL_HAD_DATA = (
     "Boʻldi, *tozalandi*! Saqlab turgan narsalarim endi yoʻq. Tayyor "
@@ -150,7 +151,7 @@ CANCEL_HAD_DATA = (
 CANCEL_NOTHING = "*Hozircha bekor qiladigan narsa yoʻq* — men shunchaki kutyapman. Tayyor boʻlganingizda havola yuboring."
 
 HISTORY_HEADER = "Mana oxirgi matnlaringiz — qayta koʻrish uchun birortasini bosing:"
-HISTORY_EMPTY = "Hali hech qanday matningiz yoʻq — YouTube yoki Instagram havolasini yuboring, keyingi safar shu yerda paydo boʻladi."
+HISTORY_EMPTY = "Hali hech qanday matningiz yoʻq — *YouTube* yoki *Instagram* havolasini yuboring, keyingi safar shu yerda paydo boʻladi."
 HISTORY_NOT_FOUND = "Buni topa olmadim — balki juda eski yoki oʻchirilgan boʻlishi mumkin. /history buyrugʻini yana sinab koʻring."
 
 PLATFORM_LABELS = {
