@@ -1,6 +1,7 @@
+import logging
 import time
 
-from deep_translator import GoogleTranslator
+from deep_translator import GoogleTranslator, MyMemoryTranslator
 from deep_translator.exceptions import (
     ElementNotFoundInGetRequest,
     RequestError,
@@ -10,6 +11,8 @@ from deep_translator.exceptions import (
 )
 
 from utils.text_chunker import split_into_chunks, join_chunks
+
+logger = logging.getLogger(__name__)
 
 
 # Exceptions the Google backend can raise that look transient (server-side
@@ -24,6 +27,17 @@ RETRYABLE_EXCEPTIONS = (
     TooManyRequests,
     ElementNotFoundInGetRequest,
 )
+
+
+# MyMemoryTranslator (deep-translator's other free, no-API-key backend)
+# uses locale-style codes (en-GB, not en) - only the 4 languages this bot
+# actually supports need mapping here, not deep-translator's full list.
+MYMEMORY_LANGUAGE_CODES = {
+    "en": "en-GB",
+    "ru": "ru-RU",
+    "ar": "ar-SA",
+    "uz": "uz-UZ",
+}
 
 
 LANGUAGE_NAMES = {
@@ -84,6 +98,41 @@ def _looks_like_passthrough_failure(chunk: str, result: str, source_language: st
     return result.strip() == chunk.strip()
 
 
+def _translate_chunk_fallback(chunk: str, source_language: str, target_language: str):
+    """
+    MyMemoryTranslator as a last resort after GoogleTranslator's own
+    retries are exhausted - a different free, no-API-key backend (a
+    translation-memory lookup, not full neural MT, so quality can be
+    inconsistent on uncommon phrases - real-tested example: "patience"
+    came back as the Arabic word for "patents" on one request). Used
+    only as a fallback so the common case still gets Google's better
+    quality; an imperfect translation beats a hard failure on the rare
+    case both matter (this project's real, repeated observation is that
+    Google's free endpoint is rate-limit-fragile under sustained use,
+    not that it's usually wrong - see README).
+    """
+
+    mymemory_source = MYMEMORY_LANGUAGE_CODES.get(source_language)
+    mymemory_target = MYMEMORY_LANGUAGE_CODES.get(target_language)
+
+    if not mymemory_source or not mymemory_target:
+        return None
+
+    try:
+        translator = MyMemoryTranslator(source=mymemory_source, target=mymemory_target)
+        result = translator.translate(chunk)
+    except Exception:
+        logger.exception("MyMemory fallback translation also failed")
+        return None
+
+    if _looks_like_translation_error(result) or _looks_like_passthrough_failure(
+        chunk, result, source_language, target_language
+    ):
+        return None
+
+    return result
+
+
 def _translate_chunk(translator: GoogleTranslator, chunk: str, source_language: str, target_language: str) -> str:
     last_result = None
     last_exception = None
@@ -107,15 +156,25 @@ def _translate_chunk(translator: GoogleTranslator, chunk: str, source_language: 
         if attempt < MAX_RETRIES - 1:
             time.sleep(RETRY_DELAY_SECONDS * (2 ** attempt))
 
+    logger.warning(
+        f"GoogleTranslator exhausted {MAX_RETRIES} attempts "
+        f"({source_language}->{target_language}) - trying MyMemory fallback"
+    )
+    fallback_result = _translate_chunk_fallback(chunk, source_language, target_language)
+    if fallback_result is not None:
+        return fallback_result
+
     if last_exception is not None:
         raise RuntimeError(
             f"Translation service kept raising {type(last_exception).__name__} "
-            f"after {MAX_RETRIES} attempts: {last_exception}"
+            f"after {MAX_RETRIES} attempts, and the MyMemory fallback also "
+            f"failed: {last_exception}"
         ) from last_exception
 
     raise RuntimeError(
         f"Translation service failed to translate a chunk after {MAX_RETRIES} "
-        f"attempts (error page or untranslated passthrough): {last_result!r}"
+        f"attempts (error page or untranslated passthrough), and the "
+        f"MyMemory fallback also failed: {last_result!r}"
     )
 
 
