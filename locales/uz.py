@@ -60,17 +60,27 @@ START_TEXT_PARTS = [
     ("/help", True),
     (" deb yozing!", False),
 ]
-HELP_TEXT = (
-    "Menga *YouTube*, *Instagram*, *TikTok*, *Facebook* yoki *X/Twitter* "
-    "havolasini yuboring — men uni tinglab, hammasini yozib olib, toza "
-    "holda qaytarib beraman.\n"
-    "Nusxa kerakmi? PDF yoki matn fayli qilib bera olaman. Nutqli kontent "
-    "bilan yaxshiroq ishlayman — qoʻshiqlar bilan sekinroq va aniqligi "
-    "pastroq boʻlishi mumkin.\n\n"
-    "/history — oldingi matnlaringizni koʻrish. /language — til "
-    "sozlamasini oʻzgartirish. /cancel — bekor qilish va boshidan boshlash. "
-    "/start — yana salomlashish."
-)
+# HELP_TEXT_PARTS - see en.py's HELP_TEXT_PARTS comment for why this is
+# parts-based rather than a plain Markdown string.
+HELP_TEXT_PARTS = [
+    ("Menga ", False),
+    *_PLATFORM_LIST_PARTS,
+    (" havolasini yuboring — men uni tinglab, hammasini yozib olib, toza "
+     "holda qaytarib beraman.\nNusxa kerakmi? ", False),
+    ("PDF", True),
+    (" yoki matn ", False),
+    ("fayli", True),
+    (" qilib bera olaman. Nutqli kontent bilan yaxshiroq ishlayman — "
+     "qoʻshiqlar bilan sekinroq va aniqligi pastroq boʻlishi mumkin.\n\n", False),
+    ("/history", True),
+    (" — oldingi matnlaringizni koʻrish. ", False),
+    ("/language", True),
+    (" — til sozlamasini oʻzgartirish. ", False),
+    ("/cancel", True),
+    (" — bekor qilish va boshidan boshlash. ", False),
+    ("/start", True),
+    (" — yana salomlashish.", False),
+]
 
 DOWNLOADING = [
     "📥 *{platform}* havolangizdan audio olyapman...",
@@ -112,12 +122,16 @@ EXPORT_LABEL_TRANSCRIPT = "tozalangan matn"
 FILE_FORMAT_PDF = "PDF"
 FILE_FORMAT_TEXT = "matn fayli"
 
-NO_LINK_FOUND = "Bu yerda havola koʻrinmayapti — *YouTube*, *Instagram*, *TikTok*, *Facebook* yoki *X/Twitter* havolasini yuboring, boshlaymiz."
-UNRECOGNIZED_LINK = (
-    "Bu havolani tanimadim. Men *YouTube*, *Instagram*, *TikTok*, "
-    "*Facebook* yoki *X/Twitter* havolalari bilan ishlayman — shulardan "
-    "birini sinab koʻring."
-)
+NO_LINK_FOUND_PARTS = [
+    ("Bu yerda havola koʻrinmayapti — ", False),
+    *_PLATFORM_LIST_PARTS,
+    (" havolasini yuboring, boshlaymiz.", False),
+]
+UNRECOGNIZED_LINK_PARTS = [
+    ("Bu havolani tanimadim. Men ", False),
+    *_PLATFORM_LIST_PARTS,
+    (" havolalari bilan ishlayman — shulardan birini sinab koʻring.", False),
+]
 
 ERROR_PRIVATE = (
     "Bu *yopiq (private)* akkaunt yoki video koʻrinyapti — men faqat ochiq "

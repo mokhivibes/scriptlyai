@@ -59,14 +59,27 @@ START_TEXT_PARTS = [
     ("/help", True),
     ("!", False),
 ]
-HELP_TEXT = (
-    "Присылай ссылку на *YouTube*, *Instagram*, *TikTok*, *Facebook* или "
-    "*X/Twitter* — я прослушаю, всё запишу и отдам тебе в чистом виде.\n"
-    "Нужна копия? Могу сделать PDF или текстовый файл. Лучше всего работаю "
-    "с речью — с песнями может быть медленнее и не так точно.\n\n"
-    "/history — посмотреть прошлые расшифровки. /language — сменить язык "
-    "общения. /cancel — начать заново. /start — поздороваться ещё раз."
-)
+# HELP_TEXT_PARTS - see en.py's HELP_TEXT_PARTS comment for why this is
+# parts-based rather than a plain Markdown string.
+HELP_TEXT_PARTS = [
+    ("Присылай ссылку на ", False),
+    *_PLATFORM_LIST_PARTS,
+    (" — я прослушаю, всё запишу и отдам тебе в чистом виде.\nНужна "
+     "копия? Могу сделать ", False),
+    ("PDF", True),
+    (" или ", False),
+    ("текстовый файл", True),
+    (". Лучше всего работаю с речью — с песнями может быть медленнее и "
+     "не так точно.\n\n", False),
+    ("/history", True),
+    (" — посмотреть прошлые расшифровки. ", False),
+    ("/language", True),
+    (" — сменить язык общения. ", False),
+    ("/cancel", True),
+    (" — начать заново. ", False),
+    ("/start", True),
+    (" — поздороваться ещё раз.", False),
+]
 
 DOWNLOADING = [
     "📥 Забираю аудио по твоей ссылке с *{platform}*...",
@@ -110,11 +123,16 @@ EXPORT_LABEL_TRANSCRIPT = "расшифровка"
 FILE_FORMAT_PDF = "PDF"
 FILE_FORMAT_TEXT = "текстовый файл"
 
-NO_LINK_FOUND = "Хм, я не вижу здесь ссылки — пришли ссылку на *YouTube*, *Instagram*, *TikTok*, *Facebook* или *X/Twitter*, и я начну."
-UNRECOGNIZED_LINK = (
-    "Не узнаю эту ссылку. Я работаю с *YouTube*, *Instagram*, *TikTok*, "
-    "*Facebook* или *X/Twitter* — попробуй одну из них."
-)
+NO_LINK_FOUND_PARTS = [
+    ("Хм, я не вижу здесь ссылки — пришли ссылку на ", False),
+    *_PLATFORM_LIST_PARTS,
+    (", и я начну.", False),
+]
+UNRECOGNIZED_LINK_PARTS = [
+    ("Не узнаю эту ссылку. Я работаю с ", False),
+    *_PLATFORM_LIST_PARTS,
+    (" — попробуй одну из них.", False),
+]
 
 ERROR_PRIVATE = (
     "Похоже, это *закрытый* аккаунт или видео — я могу доставать только то, "

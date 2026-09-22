@@ -50,8 +50,8 @@ def build_shortcuts_keyboard(lang):
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     lang = _lang(update.effective_user.id)
-    # Fully static, developer-written copy - safe to format.
-    await call_with_retry(update.message.reply_text, msg.t(lang, "HELP_TEXT"), parse_mode="Markdown")
+    text, entities = msg.help_text(lang)
+    await call_with_retry(update.message.reply_text, text, entities=entities)
 
 
 async def cancel_command(update: Update, context: ContextTypes.DEFAULT_TYPE):

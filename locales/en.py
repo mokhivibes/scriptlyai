@@ -66,16 +66,29 @@ START_TEXT_PARTS = [
     ("/help", True),
     ("!", False),
 ]
-HELP_TEXT = (
-    "Send me a *YouTube*, *Instagram*, *TikTok*, *Facebook*, or *X/Twitter* "
-    "link and I'll listen to it, write it all down, and hand it back to "
-    "you clean.\n"
-    "Want a copy to keep? I can export it as a PDF or text file. Works best "
-    "on spoken content — music or singing can take longer and come out "
-    "less accurate.\n\n"
-    "/history to revisit past transcripts. /language to change how I talk to you. "
-    "/cancel to start over. /start to say hi again."
-)
+# HELP_TEXT_PARTS - see en.py's LANGUAGE_ONBOARDING_PARTS comment for why
+# messages that need custom emoji (via _PLATFORM_LIST_PARTS) are
+# parts-based rather than plain Markdown strings - custom emoji require
+# MessageEntity, which Markdown syntax cannot express.
+HELP_TEXT_PARTS = [
+    ("Send me a ", False),
+    *_PLATFORM_LIST_PARTS,
+    (" link and I'll listen to it, write it all down, and hand it back to "
+     "you clean.\nWant a copy to keep? I can export it as a ", False),
+    ("PDF", True),
+    (" or ", False),
+    ("text file", True),
+    (". Works best on spoken content — music or singing can take longer "
+     "and come out less accurate.\n\n", False),
+    ("/history", True),
+    (" to revisit past transcripts. ", False),
+    ("/language", True),
+    (" to change how I talk to you. ", False),
+    ("/cancel", True),
+    (" to start over. ", False),
+    ("/start", True),
+    (" to say hi again.", False),
+]
 
 # --- Progress messages (randomized so repeat users see some variety) ---
 DOWNLOADING = [
@@ -126,11 +139,16 @@ FILE_FORMAT_PDF = "PDF"
 FILE_FORMAT_TEXT = "text file"
 
 # --- Link handling ---
-NO_LINK_FOUND = "Hmm, I don't see a link in there — send me a *YouTube*, *Instagram*, *TikTok*, *Facebook*, or *X/Twitter* link and I'll get started."
-UNRECOGNIZED_LINK = (
-    "I don't recognize that link. I work with *YouTube*, *Instagram*, "
-    "*TikTok*, *Facebook*, or *X/Twitter* links — try one of those."
-)
+NO_LINK_FOUND_PARTS = [
+    ("Hmm, I don't see a link in there — send me a ", False),
+    *_PLATFORM_LIST_PARTS,
+    (" link and I'll get started.", False),
+]
+UNRECOGNIZED_LINK_PARTS = [
+    ("I don't recognize that link. I work with ", False),
+    *_PLATFORM_LIST_PARTS,
+    (" links — try one of those.", False),
+]
 # --- Errors (no emojis - clarity comes first when something's gone wrong) ---
 ERROR_PRIVATE = (
     "This looks like a *private* account or video — I can only grab stuff "

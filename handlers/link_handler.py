@@ -152,7 +152,8 @@ async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = extract_url(text)
 
     if not url:
-        await call_with_retry(update.message.reply_text, msg.t(lang, "NO_LINK_FOUND"), parse_mode="Markdown")
+        no_link_text, no_link_entities = msg.no_link_found_text(lang)
+        await call_with_retry(update.message.reply_text, no_link_text, entities=no_link_entities)
         return
 
     platform = detect_platform(url)
@@ -214,7 +215,8 @@ async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await _process_link(update.message, context, url, platform, platform_name, lang, update.effective_user.id)
 
     else:
-        await call_with_retry(update.message.reply_text, msg.t(lang, "UNRECOGNIZED_LINK"), parse_mode="Markdown")
+        unrecognized_text, unrecognized_entities = msg.unrecognized_link_text(lang)
+        await call_with_retry(update.message.reply_text, unrecognized_text, entities=unrecognized_entities)
 
 
 async def _process_link(message, context, url, platform, platform_name, lang, user_id):
@@ -475,7 +477,8 @@ async def _handle_confirm_long_content(query, context, lang):
         # original link came in) rather than leaving the user stuck, and
         # ask for the link again.
         _mark_free(context)
-        await call_with_retry(query.message.reply_text, msg.t(lang, "NO_LINK_FOUND"), parse_mode="Markdown")
+        no_link_text, no_link_entities = msg.no_link_found_text(lang)
+        await call_with_retry(query.message.reply_text, no_link_text, entities=no_link_entities)
         return
 
     # busy is already True from when the original link triggered the

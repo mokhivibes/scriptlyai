@@ -134,6 +134,22 @@ def welcome_text(lang, first_name: str):
     return build_bold_message(parts)
 
 
+def help_text(lang):
+    """Returns (text, entities) - built from HELP_TEXT_PARTS, which includes
+    branded platform-icon custom emoji (see rich_text.py)."""
+    return build_bold_message(_locale(lang).HELP_TEXT_PARTS)
+
+
+def no_link_found_text(lang):
+    """Returns (text, entities) - see help_text() above for why."""
+    return build_bold_message(_locale(lang).NO_LINK_FOUND_PARTS)
+
+
+def unrecognized_link_text(lang):
+    """Returns (text, entities) - see help_text() above for why."""
+    return build_bold_message(_locale(lang).UNRECOGNIZED_LINK_PARTS)
+
+
 def downloading_message(lang, platform: str) -> str:
     return random.choice(_locale(lang).DOWNLOADING).format(platform=platform)
 
