@@ -150,6 +150,11 @@ def unrecognized_link_text(lang):
     return build_bold_message(_locale(lang).UNRECOGNIZED_LINK_PARTS)
 
 
+def unsupported_message_text(lang):
+    """Returns (text, entities) - see help_text() above for why."""
+    return build_bold_message(_locale(lang).UNSUPPORTED_MESSAGE_PARTS)
+
+
 def downloading_message(lang, platform: str) -> str:
     return random.choice(_locale(lang).DOWNLOADING).format(platform=platform)
 

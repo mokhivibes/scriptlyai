@@ -13,7 +13,7 @@ from telegram.ext import (
 from logging_config import setup_logging
 from config import BOT_TOKEN
 from database import init_database, add_user, get_interface_language
-from handlers.link_handler import handle_link, handle_callback_query
+from handlers.link_handler import handle_link, handle_callback_query, handle_unsupported_message
 from handlers.command_handler import (
     help_command,
     cancel_command,
@@ -163,6 +163,15 @@ def main():
     application.add_handler(CommandHandler("history", history_command))
     application.add_handler(CommandHandler("language", language_command))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_link))
+    # Anything else a user might send directly (voice note, video file,
+    # photo, document, sticker) - previously unhandled entirely, meaning
+    # complete silence for a very natural mistake a transcription bot's
+    # users could make (attaching media instead of pasting a link).
+    application.add_handler(MessageHandler(
+        filters.PHOTO | filters.VIDEO | filters.VIDEO_NOTE | filters.VOICE
+        | filters.AUDIO | filters.Document.ALL | filters.Sticker.ALL,
+        handle_unsupported_message
+    ))
 
     # Interface-language selection is its own callback namespace (setlang_*),
     # kept completely separate from the export/history callbacks handled by

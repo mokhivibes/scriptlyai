@@ -124,7 +124,7 @@ def build_save_keyboard(lang):
     return InlineKeyboardMarkup(keyboard)
 
 
-def build_translate_language_keyboard(lang):
+def build_translate_language_keyboard(lang, exclude_code=None):
     """
     Target-language picker for translation - deliberately separate from
     command_handler.py's build_language_picker_keyboard (that one sets the
@@ -132,14 +132,20 @@ def build_translate_language_keyboard(lang):
     language's own name; this one picks a TRANSLATION target and its
     labels are in the user's current interface language, since they're
     choosing what to translate INTO, not which language to read the UI in).
+
+    exclude_code drops the transcript's own detected language from the
+    list - offering it would only lead to a dead-end "that's already the
+    language this is in!" tap, so it's better left off the menu entirely
+    rather than shown and then rejected.
     """
 
+    codes = [code for code in msg.SUPPORTED_LANGUAGES if code != exclude_code]
     buttons = [
         InlineKeyboardButton(
             f"{msg.LANGUAGE_FLAGS[code]} {msg.target_language_name(lang, code)}",
             callback_data=f"translate_to_{code}"
         )
-        for code in msg.SUPPORTED_LANGUAGES
+        for code in codes
     ]
     keyboard = [buttons[i:i + 2] for i in range(0, len(buttons), 2)]
     return InlineKeyboardMarkup(keyboard)
@@ -179,6 +185,26 @@ _SHORTCUT_HANDLERS = {
     "history": history_command,
     "language": language_command,
 }
+
+
+async def handle_unsupported_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Catches a photo, voice note, video file, document, or sticker sent
+    directly - previously these had no handler registered at all (only
+    filters.TEXT reached handle_link), so a user who attached a video or
+    voice note instead of pasting a link got complete silence. A
+    transcription bot's users trying to hand it media directly is a very
+    natural mistake to make, so this replies rather than staying quiet.
+    Not busy-guarded - this is a fixed, immediate reply that doesn't
+    touch any pipeline state, unlike handle_link's link-processing path.
+    """
+
+    if not update.message:
+        return
+
+    lang = _lang(update.effective_user.id)
+    text, entities = msg.unsupported_message_text(lang)
+    await call_with_retry(update.message.reply_text, text, entities=entities)
 
 
 async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -287,13 +313,13 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
     video_path = None
     audio_path = None
 
+    await call_with_retry(message.reply_sticker, STICKER_PROCESSING)
+
     # One status message, edited in place through each processing step,
     # instead of sending a new message per step - keeps the chat from
     # filling up with transient "still working on it" messages.
     # parse_mode is safe here: platform_name comes from the fixed dict
     # above (exactly 4 known values), never from unpredictable content.
-    await call_with_retry(message.reply_sticker, STICKER_PROCESSING)
-
     status_message = await call_with_retry(
         message.reply_text, msg.downloading_message(lang, platform_name), parse_mode="Markdown"
     )
@@ -621,10 +647,12 @@ async def _handle_translate_menu(query, context, lang):
         await call_with_retry(query.message.reply_text, msg.t(lang, "NO_TRANSCRIPT_SAVED"), parse_mode="Markdown")
         return
 
+    detected_language = context.user_data.get("detected_language")
+
     await call_with_retry(
         query.message.reply_text,
         msg.t(lang, "TRANSLATE_PICKER_PROMPT"),
-        reply_markup=build_translate_language_keyboard(lang)
+        reply_markup=build_translate_language_keyboard(lang, exclude_code=detected_language)
     )
 
 

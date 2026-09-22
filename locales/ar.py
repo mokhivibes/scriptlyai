@@ -117,8 +117,8 @@ EXPORT_TXT_BUTTON = "📝 ملف نصي"
 EXPORT_PROMPT = "تريد نسخة تحتفظ بها؟ اختر صيغة أدناه:"
 EXPORT_FAILED = "للأسف لم أتمكن من تجهيز الملف. هل تريد المحاولة مرة أخرى؟"
 
-TRANSLATE_BUTTON = "🌐 ترجمة"
-SUMMARIZE_BUTTON = "🔍 ملخص"
+TRANSLATE_BUTTON = "🌐 ترجم"
+SUMMARIZE_BUTTON = "🔍 لخّص"
 TRANSLATE_PICKER_PROMPT = "إلى أي لغة أترجمه؟"
 TRANSLATING = "🌐 أترجم الآن..."
 TRANSLATION_HEADER = "إليك الترجمة:"
@@ -145,6 +145,11 @@ UNRECOGNIZED_LINK_PARTS = [
     ("لا أتعرّف على هذا الرابط. أعمل مع روابط ", False),
     *_PLATFORM_LIST_PARTS,
     (" — جرّب أحدها.", False),
+]
+UNSUPPORTED_MESSAGE_PARTS = [
+    ("أعمل بالروابط، وليس بالملفات المُرسلة مباشرة — أرسل لي رابط ", False),
+    *_PLATFORM_LIST_PARTS,
+    (" بدلاً من ذلك.", False),
 ]
 
 ERROR_PRIVATE = (

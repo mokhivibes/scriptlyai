@@ -118,8 +118,8 @@ EXPORT_TXT_BUTTON = "📝 Matn fayli"
 EXPORT_PROMPT = "Nusxasini saqlab qolmoqchimisiz? Quyidan formatni tanlang:"
 EXPORT_FAILED = "Voy, faylni tayyorlay olmadim. Yana urinib koʻramizmi?"
 
-TRANSLATE_BUTTON = "🌐 Tarjima"
-SUMMARIZE_BUTTON = "🔍 Qisqacha"
+TRANSLATE_BUTTON = "🌐 Tarjima qilish"
+SUMMARIZE_BUTTON = "🔍 Qisqartirish"
 TRANSLATE_PICKER_PROMPT = "Qaysi tilga tarjima qilay?"
 TRANSLATING = "🌐 Tarjima qilyapman..."
 TRANSLATION_HEADER = "Mana tarjima:"
@@ -146,6 +146,12 @@ UNRECOGNIZED_LINK_PARTS = [
     ("Bu havolani tanimadim. Men ", False),
     *_PLATFORM_LIST_PARTS,
     (" havolalari bilan ishlayman — shulardan birini sinab koʻring.", False),
+]
+UNSUPPORTED_MESSAGE_PARTS = [
+    ("Men havolalar bilan ishlayman, toʻg'ridan-toʻg'ri fayllar bilan emas — "
+     "menga ", False),
+    *_PLATFORM_LIST_PARTS,
+    (" havolasini yuboring.", False),
 ]
 
 ERROR_PRIVATE = (

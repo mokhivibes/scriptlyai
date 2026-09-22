@@ -136,7 +136,7 @@ EXPORT_FAILED = "Hmm, I couldn't put that file together. Mind trying again?"
 
 # --- Translate & Summarize (post-transcript actions, alongside export) ---
 TRANSLATE_BUTTON = "🌐 Translate"
-SUMMARIZE_BUTTON = "🔍 Summary"
+SUMMARIZE_BUTTON = "🔍 Summarize"
 TRANSLATE_PICKER_PROMPT = "Which language should I translate it into?"
 TRANSLATING = "🌐 Translating..."
 TRANSLATION_HEADER = "Here's the translation:"
@@ -167,6 +167,16 @@ UNRECOGNIZED_LINK_PARTS = [
     ("I don't recognize that link. I work with ", False),
     *_PLATFORM_LIST_PARTS,
     (" links — try one of those.", False),
+]
+# Shown for a photo, voice note, video file, document, or sticker sent
+# directly - the bot works from links only (downloads them itself), not
+# uploaded media, so this needs to say that clearly rather than staying
+# silent (which is what happened before this existed - a natural mistake
+# for a transcription bot's users to make, worth a clear reply).
+UNSUPPORTED_MESSAGE_PARTS = [
+    ("I work from links, not files sent directly — send me a ", False),
+    *_PLATFORM_LIST_PARTS,
+    (" link instead.", False),
 ]
 # --- Errors (no emojis - clarity comes first when something's gone wrong) ---
 ERROR_PRIVATE = (

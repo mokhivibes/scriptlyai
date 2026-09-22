@@ -118,7 +118,7 @@ EXPORT_PROMPT = "Хочешь сохранить копию? Выбери фор
 EXPORT_FAILED = "Хм, файл не получилось собрать. Попробуем ещё раз?"
 
 TRANSLATE_BUTTON = "🌐 Перевести"
-SUMMARIZE_BUTTON = "🔍 Кратко"
+SUMMARIZE_BUTTON = "🔍 Обобщить"
 TRANSLATE_PICKER_PROMPT = "На какой язык перевести?"
 TRANSLATING = "🌐 Перевожу..."
 TRANSLATION_HEADER = "Вот перевод:"
@@ -147,6 +147,11 @@ UNRECOGNIZED_LINK_PARTS = [
     ("Не узнаю эту ссылку. Я работаю с ", False),
     *_PLATFORM_LIST_PARTS,
     (" — попробуй одну из них.", False),
+]
+UNSUPPORTED_MESSAGE_PARTS = [
+    ("Я работаю со ссылками, а не с файлами напрямую — пришли мне ссылку на ", False),
+    *_PLATFORM_LIST_PARTS,
+    (".", False),
 ]
 
 ERROR_PRIVATE = (
