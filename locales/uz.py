@@ -12,6 +12,14 @@ _PLATFORM_LIST_PARTS = [
     ("✖️", X_TWITTER), (" X/Twitter", False),
 ]
 
+# See en.py's _FEATURE_LIST_PARTS for what this does and why.
+_FEATURE_LIST_PARTS = [
+    ("✍️ ", False), ("Matnga aylantirish", True), (" — aytilganlarni toza, oʻqilishi oson matnga aylantiraman\n", False),
+    ("🌐 ", False), ("Tarjima", True), (" — boshqa tilga\n", False),
+    ("🔍 ", False), ("Qisqartirish", True), (" — qisqacha versiyasi kerak boʻlsa\n", False),
+    ("📄 ", False), ("Eksport", True), (" — PDF yoki matn fayli sifatida", False),
+]
+
 LANGUAGE_CHANGED = (
     "Boʻldi — bundan buyon 🇺🇿 *oʻzbekcha* gaplashaman!\n"
     "Boshlash uchun havola yuboring, yoki /help deb yozing."
@@ -29,17 +37,9 @@ LANGUAGE_ONBOARDING_PARTS = [
     ("oʻzbekcha", True),
     (" gaplashaman!\n\nMenga havola yuboring — ", False),
     *_PLATFORM_LIST_PARTS,
-    (" — men uni ", False),
-    ("yozib olib, tozalayman", True),
-    (". Boshqa tilga kerakmi? ", False),
-    ("Tarjima qilib beraman", True),
-    (". Qisqacha versiyasi kerakmi? Uni ham ", False),
-    ("qisqartirib beraman", True),
-    (".\n\n📄 Nusxa kerakmi?\n\n", False),
-    ("PDF", True),
-    (" yoki matn ", False),
-    ("fayli", True),
-    (" qilib beraman!\n\nBoshlash uchun havola yuboring, yoki ", False),
+    (" — mana men nima qila olaman:\n\n", False),
+    *_FEATURE_LIST_PARTS,
+    ("\n\nBoshlash uchun havola yuboring, yoki ", False),
     ("/help", True),
     (" deb yozing!", False),
 ]
@@ -53,46 +53,29 @@ START_TEXT_PARTS = [
     ("ScriptlyAI", True),
     ("'man!\n\nMenga video havolasini yuboring — ", False),
     *_PLATFORM_LIST_PARTS,
-    (" — aytilganlarni toza va oʻqilishi ", False),
-    ("oson matnga", True),
-    (" aylantirib beraman. Boshqa tilga kerakmi? ", False),
-    ("Tarjima qilib beraman", True),
-    (". Qisqacha versiyasi kerakmi? Uni ham ", False),
-    ("qisqartirib beraman", True),
-    (".\n\n📄 Nusxa kerakmi?\n\n", False),
-    ("PDF", True),
-    (" yoki matn ", False),
-    ("fayl", True),
-    (" formatlarida qilib beraman!\n\nQanday ishlashini "
-     "bilmayapsizmi?\n\n", False),
+    (" — mana men nima qila olaman:\n\n", False),
+    *_FEATURE_LIST_PARTS,
+    ("\n\nQanday ishlashini bilmayapsizmi?\n\n", False),
     ("/help", True),
     (" deb yozing!", False),
 ]
 # HELP_TEXT_PARTS - see en.py's HELP_TEXT_PARTS comment for why this is
 # parts-based rather than a plain Markdown string.
 HELP_TEXT_PARTS = [
-    ("Menga ", False),
+    ("Menga havola yuboring — ", False),
     *_PLATFORM_LIST_PARTS,
-    (" havolasini yuboring — men uni tinglab, hammasini yozib olib, toza "
-     "holda qaytarib beraman. Nutqli kontent bilan yaxshiroq ishlayman — "
-     "qoʻshiqlar bilan sekinroq va aniqligi pastroq boʻlishi mumkin.\n\n"
-     "Nusxa kerakmi? ", False),
-    ("PDF", True),
-    (" yoki matn ", False),
-    ("fayli", True),
-    (" qilib bera olaman. Tarjima yoki qisqacha mazmuni kerakmi? Uni ham ", False),
-    ("tarjima", True),
-    (" yoki ", False),
-    ("qisqartirib", True),
-    (" bera olaman.\n\n", False),
+    (" — mana men nima qila olaman:\n\n", False),
+    *_FEATURE_LIST_PARTS,
+    ("\n\nNutqli kontent bilan yaxshiroq ishlayman — qoʻshiqlar bilan "
+     "sekinroq va aniqligi pastroq boʻlishi mumkin.\n\n", False),
     ("/history", True),
-    (" — oldingi matnlaringizni koʻrish. ", False),
+    (" — oldingi matnlaringizni koʻrish\n", False),
     ("/language", True),
-    (" — til sozlamasini oʻzgartirish. ", False),
+    (" — til sozlamasini oʻzgartirish\n", False),
     ("/cancel", True),
-    (" — bekor qilish va boshidan boshlash. ", False),
+    (" — bekor qilish va boshidan boshlash\n", False),
     ("/start", True),
-    (" — yana salomlashish.", False),
+    (" — yana salomlashish", False),
 ]
 
 # See en.py's DOWNLOADING_TEMPLATES comment for why this is

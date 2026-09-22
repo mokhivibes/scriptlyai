@@ -16,6 +16,16 @@ _PLATFORM_LIST_PARTS = [
     ("✖️", X_TWITTER), (" X/Twitter", False),
 ]
 
+# One line per capability, each its own bolded label + short description -
+# shared across the welcome/onboarding/help messages below so what the
+# bot can do is scannable at a glance instead of buried in a paragraph.
+_FEATURE_LIST_PARTS = [
+    ("✍️ ", False), ("Transcribe", True), (" — turn what's said into clean, readable text\n", False),
+    ("🌐 ", False), ("Translate", True), (" — get it in another language\n", False),
+    ("🔍 ", False), ("Summarize", True), (" — get the short version\n", False),
+    ("📄 ", False), ("Export", True), (" — save it as a PDF or text file", False),
+]
+
 LANGUAGE_CHANGED = (
     "Got it — I'll speak 🇬🇧 *English* from now on!\n"
     "Send me a link to get started, or /help for the full picture."
@@ -33,19 +43,11 @@ LANGUAGE_ONBOARDING_PARTS = [
     (DYNAMIC, False),
     ("! 👋 Great, I'll speak 🇬🇧 ", False),
     ("English", True),
-    (" with you from now on!\n\nJust send me a link — ", False),
+    (" with you from now on!\n\nSend me a link — ", False),
     *_PLATFORM_LIST_PARTS,
-    (" — and I'll ", False),
-    ("transcribe it and clean it up", True),
-    (". Want it in another language? I can ", False),
-    ("translate", True),
-    (" it. Need the short version? I'll ", False),
-    ("summarize", True),
-    (" it too.\n\n📄 Want a copy?\n\nI can export it as a ", False),
-    ("PDF", True),
-    (" or ", False),
-    ("text file", True),
-    ("!\n\nSend a link to get started, or type ", False),
+    (" — and here's what I can do:\n\n", False),
+    *_FEATURE_LIST_PARTS,
+    ("\n\nSend a link to get started, or type ", False),
     ("/help", True),
     (" for the full picture!", False),
 ]
@@ -60,17 +62,9 @@ START_TEXT_PARTS = [
     ("ScriptlyAI", True),
     ("!\n\nSend me a video link — ", False),
     *_PLATFORM_LIST_PARTS,
-    (" — and I'll turn what's said into ", False),
-    ("clean, readable text", True),
-    (". Want it in another language? I can ", False),
-    ("translate", True),
-    (" it. Need the short version? I'll ", False),
-    ("summarize", True),
-    (" it too.\n\n📄 Want a copy?\n\nI can export it as a ", False),
-    ("PDF", True),
-    (" or ", False),
-    ("text file", True),
-    ("!\n\nNot sure how it works?\n\nJust type ", False),
+    (" — and here's what I can do:\n\n", False),
+    *_FEATURE_LIST_PARTS,
+    ("\n\nNot sure how it works?\n\nJust type ", False),
     ("/help", True),
     ("!", False),
 ]
@@ -79,28 +73,20 @@ START_TEXT_PARTS = [
 # parts-based rather than plain Markdown strings - custom emoji require
 # MessageEntity, which Markdown syntax cannot express.
 HELP_TEXT_PARTS = [
-    ("Send me a ", False),
+    ("Send me a link — ", False),
     *_PLATFORM_LIST_PARTS,
-    (" link and I'll listen to it, write it all down, and hand it back to "
-     "you clean. Works best on spoken content — music or singing can "
-     "take longer and come out less accurate.\n\nWant a copy to keep? "
-     "I can export it as a ", False),
-    ("PDF", True),
-    (" or ", False),
-    ("text file", True),
-    (". Want it in another language, or just the highlights? I can also ", False),
-    ("translate", True),
-    (" or ", False),
-    ("summarize", True),
-    (" it.\n\n", False),
+    (" — and here's what I can do:\n\n", False),
+    *_FEATURE_LIST_PARTS,
+    ("\n\nWorks best on spoken content — music or singing can take "
+     "longer and come out less accurate.\n\n", False),
     ("/history", True),
-    (" to revisit past transcripts. ", False),
+    (" — revisit past transcripts\n", False),
     ("/language", True),
-    (" to change how I talk to you. ", False),
+    (" — change how I talk to you\n", False),
     ("/cancel", True),
-    (" to start over. ", False),
+    (" — start over\n", False),
     ("/start", True),
-    (" to say hi again.", False),
+    (" — say hi again", False),
 ]
 
 # --- Progress messages (randomized so repeat users see some variety) ---

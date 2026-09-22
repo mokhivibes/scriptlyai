@@ -12,6 +12,14 @@ _PLATFORM_LIST_PARTS = [
     ("✖️", X_TWITTER), (" إكس/تويتر", False),
 ]
 
+# See en.py's _FEATURE_LIST_PARTS for what this does and why.
+_FEATURE_LIST_PARTS = [
+    ("✍️ ", False), ("تفريغ نصي", True), (" — أحوّل ما يُقال إلى نص واضح ومرتب\n", False),
+    ("🌐 ", False), ("ترجمة", True), (" — بلغة أخرى\n", False),
+    ("🔍 ", False), ("تلخيص", True), (" — إذا أردت الخلاصة فقط\n", False),
+    ("📄 ", False), ("تصدير", True), (" — كملف PDF أو نصي", False),
+]
+
 LANGUAGE_CHANGED = (
     "تمام، من الآن سأتحدث معك 🇸🇦 *بالعربية*!\n"
     "أرسل رابطاً للبدء، أو اكتب /help لمعرفة التفاصيل."
@@ -28,19 +36,11 @@ LANGUAGE_ONBOARDING_PARTS = [
     (DYNAMIC, False),
     ("! 👋 تمام، من الآن سأتحدث معك 🇸🇦 ", False),
     ("بالعربية", True),
-    ("!\n\nفقط أرسل لي رابطاً — ", False),
+    ("!\n\nأرسل لي رابطاً — ", False),
     *_PLATFORM_LIST_PARTS,
-    (" — ", False),
-    ("أدوّنه وأنظفه لك", True),
-    (". تريده بلغة أخرى؟ أستطيع ", False),
-    ("ترجمته", True),
-    (". تريد النسخة المختصرة؟ أستطيع ", False),
-    ("تلخيصه", True),
-    (" أيضاً.\n\n📄 تريد نسخة تحتفظ بها؟\n\nأجهّزها بصيغة ", False),
-    ("PDF", True),
-    (" أو ", False),
-    ("ملف نصي", True),
-    ("!\n\nأرسل رابطاً للبدء، أو اكتب ", False),
+    (" — وإليك ما يمكنني فعله:\n\n", False),
+    *_FEATURE_LIST_PARTS,
+    ("\n\nأرسل رابطاً للبدء، أو اكتب ", False),
     ("/help", True),
     (" لمعرفة التفاصيل!", False),
 ]
@@ -54,44 +54,29 @@ START_TEXT_PARTS = [
     ("ScriptlyAI", True),
     ("!\n\nأرسل لي رابط فيديو — ", False),
     *_PLATFORM_LIST_PARTS,
-    (" — وسأحوّل ما يُقال فيه إلى ", False),
-    ("نص واضح ومرتب", True),
-    (". تريده بلغة أخرى؟ أستطيع ", False),
-    ("ترجمته", True),
-    (". تريد النسخة المختصرة؟ أستطيع ", False),
-    ("تلخيصه", True),
-    (" أيضاً.\n\n📄 تريد نسخة؟\n\nأجهّزها لك بصيغة ", False),
-    ("PDF", True),
-    (" أو ", False),
-    ("ملف نصي", True),
-    ("!\n\nلست متأكداً كيف يعمل؟\n\nفقط اكتب ", False),
+    (" — وإليك ما يمكنني فعله:\n\n", False),
+    *_FEATURE_LIST_PARTS,
+    ("\n\nلست متأكداً كيف يعمل؟\n\nفقط اكتب ", False),
     ("/help", True),
     ("!", False),
 ]
 # HELP_TEXT_PARTS - see en.py's HELP_TEXT_PARTS comment for why this is
 # parts-based rather than a plain Markdown string.
 HELP_TEXT_PARTS = [
-    ("أرسل لي رابط من ", False),
+    ("أرسل لي رابط — ", False),
     *_PLATFORM_LIST_PARTS,
-    ("، وسأستمع إليه، أدوّن كل ما فيه، ثم أعيده لك نظيفاً وواضحاً. أعمل "
-     "بشكل أفضل مع الكلام المنطوق — الأغاني قد تستغرق وقتاً أطول وتكون "
-     "أقل دقة.\n\nتريد نسخة تحتفظ بها؟ يمكنني تجهيزها بصيغة ", False),
-    ("PDF", True),
-    (" أو كملف ", False),
-    ("نصي", True),
-    (". تريد ترجمته أو نسخة مختصرة منه؟ أستطيع ", False),
-    ("ترجمته", True),
-    (" أو ", False),
-    ("تلخيصه", True),
-    (" أيضاً.\n\n", False),
+    (" — وإليك ما يمكنني فعله:\n\n", False),
+    *_FEATURE_LIST_PARTS,
+    ("\n\nأعمل بشكل أفضل مع الكلام المنطوق — الأغاني قد تستغرق وقتاً "
+     "أطول وتكون أقل دقة.\n\n", False),
     ("/history", True),
-    (" لمراجعة النصوص السابقة. ", False),
+    (" — لمراجعة النصوص السابقة\n", False),
     ("/language", True),
-    (" لتغيير لغة المحادثة. ", False),
+    (" — لتغيير لغة المحادثة\n", False),
     ("/cancel", True),
-    (" للبدء من جديد. ", False),
+    (" — للبدء من جديد\n", False),
     ("/start", True),
-    (" للترحيب من جديد.", False),
+    (" — للترحيب من جديد", False),
 ]
 
 # See en.py's DOWNLOADING_TEMPLATES comment for why this is
