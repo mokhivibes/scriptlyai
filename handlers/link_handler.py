@@ -16,6 +16,8 @@ from services.facebook_service import download_facebook_video
 from services.audio_service import extract_audio
 from services.ai_cleanup_service import clean_transcript
 from services.export_service import export_to_pdf, export_to_text
+from services.translation_service import translate_text
+from services.summary_service import summarize_transcript
 from database import add_transcript, get_transcript_by_id, get_interface_language
 from utils.network_retry import call_with_retry, call_sync_with_retry
 from utils.stickers import STICKER_PROCESSING, STICKER_DONE, STICKER_ERROR
@@ -93,7 +95,29 @@ def build_export_keyboard(lang):
             InlineKeyboardButton(msg.t(lang, "EXPORT_PDF_BUTTON"), callback_data="export_pdf"),
             InlineKeyboardButton(msg.t(lang, "EXPORT_TXT_BUTTON"), callback_data="export_txt"),
         ],
+        [
+            InlineKeyboardButton(msg.t(lang, "TRANSLATE_BUTTON"), callback_data="translate_menu"),
+            InlineKeyboardButton(msg.t(lang, "SUMMARIZE_BUTTON"), callback_data="summarize"),
+        ],
     ]
+    return InlineKeyboardMarkup(keyboard)
+
+
+def build_translate_language_keyboard(lang):
+    """
+    Target-language picker for translation - deliberately separate from
+    command_handler.py's build_language_picker_keyboard (that one sets the
+    BOT's interface language and its buttons are labeled in each
+    language's own name; this one picks a TRANSLATION target and its
+    labels are in the user's current interface language, since they're
+    choosing what to translate INTO, not which language to read the UI in).
+    """
+
+    buttons = [
+        InlineKeyboardButton(msg.target_language_name(lang, code), callback_data=f"translate_to_{code}")
+        for code in msg.SUPPORTED_LANGUAGES
+    ]
+    keyboard = [buttons[i:i + 2] for i in range(0, len(buttons), 2)]
     return InlineKeyboardMarkup(keyboard)
 
 
@@ -460,6 +484,12 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
     try:
         if data in ("export_pdf", "export_txt"):
             await _handle_export(query, context, lang, data)
+        elif data == "translate_menu":
+            await _handle_translate_menu(query, context, lang)
+        elif data.startswith("translate_to_"):
+            await _handle_translate_to(query, context, lang, data.replace("translate_to_", ""))
+        elif data == "summarize":
+            await _handle_summarize(query, context, lang)
         elif data.startswith("history_"):
             await _handle_history_select(query, context, lang, data.replace("history_", ""))
     finally:
@@ -546,6 +576,71 @@ async def _handle_export(query, context, lang, data):
                 os.remove(filepath)
             except OSError:
                 logger.warning(f"Failed to remove export file: {filepath}")
+
+
+async def _handle_translate_menu(query, context, lang):
+    if not context.user_data.get("last_transcript"):
+        await call_with_retry(query.message.reply_text, msg.t(lang, "NO_TRANSCRIPT_SAVED"), parse_mode="Markdown")
+        return
+
+    await call_with_retry(
+        query.message.reply_text,
+        msg.t(lang, "TRANSLATE_PICKER_PROMPT"),
+        reply_markup=build_translate_language_keyboard(lang)
+    )
+
+
+async def _handle_translate_to(query, context, lang, target_code):
+    transcript = context.user_data.get("last_transcript")
+    detected_language = context.user_data.get("detected_language", "en")
+
+    if not transcript:
+        await call_with_retry(query.message.reply_text, msg.t(lang, "NO_TRANSCRIPT_SAVED"), parse_mode="Markdown")
+        return
+
+    if target_code not in msg.SUPPORTED_LANGUAGES:
+        return
+
+    if target_code == detected_language:
+        await call_with_retry(query.message.reply_text, msg.t(lang, "TRANSLATION_SAME_LANGUAGE"), parse_mode="Markdown")
+        return
+
+    status_message = await call_with_retry(
+        query.message.reply_text, msg.t(lang, "TRANSLATING"), parse_mode="Markdown"
+    )
+
+    try:
+        translated = await asyncio.to_thread(translate_text, transcript, target_code, detected_language)
+        await call_with_retry(status_message.edit_text, msg.t(lang, "TRANSLATION_HEADER"), parse_mode="Markdown")
+        # translated is machine-translated transcript content - genuinely
+        # unpredictable, so no parse_mode, same reasoning as the transcript
+        # itself throughout this file.
+        await send_long_text(query.message, translated)
+    except Exception as error:
+        logger.exception(f"Translation failed: {type(error).__name__}: {error}")
+        await call_with_retry(status_message.edit_text, msg.t(lang, "TRANSLATION_FAILED"), parse_mode="Markdown")
+
+
+async def _handle_summarize(query, context, lang):
+    transcript = context.user_data.get("last_transcript")
+
+    if not transcript:
+        await call_with_retry(query.message.reply_text, msg.t(lang, "NO_TRANSCRIPT_SAVED"), parse_mode="Markdown")
+        return
+
+    status_message = await call_with_retry(
+        query.message.reply_text, msg.t(lang, "SUMMARIZING"), parse_mode="Markdown"
+    )
+
+    try:
+        summary = await asyncio.to_thread(summarize_transcript, transcript)
+        await call_with_retry(status_message.edit_text, msg.t(lang, "SUMMARY_HEADER"), parse_mode="Markdown")
+        # summary is AI-generated from transcript content - genuinely
+        # unpredictable, so no parse_mode, same reasoning as elsewhere.
+        await call_with_retry(query.message.reply_text, summary)
+    except Exception as error:
+        logger.exception(f"Summarization failed: {type(error).__name__}: {error}")
+        await call_with_retry(status_message.edit_text, msg.t(lang, "SUMMARY_FAILED"), parse_mode="Markdown")
 
 
 async def _handle_history_select(query, context, lang, transcript_id_raw):

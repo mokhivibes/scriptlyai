@@ -116,6 +116,17 @@ EXPORT_PDF_BUTTON = "📄 PDF"
 EXPORT_TXT_BUTTON = "📝 Текстовый файл"
 EXPORT_PROMPT = "Хочешь сохранить копию? Выбери формат ниже:"
 EXPORT_FAILED = "Хм, файл не получилось собрать. Попробуем ещё раз?"
+
+TRANSLATE_BUTTON = "🌐 Перевести"
+SUMMARIZE_BUTTON = "🔍 Кратко"
+TRANSLATE_PICKER_PROMPT = "На какой язык перевести?"
+TRANSLATING = "🌐 Перевожу..."
+TRANSLATION_HEADER = "Вот перевод:"
+TRANSLATION_FAILED = "Хм, перевод не получился. Попробуем ещё раз?"
+TRANSLATION_SAME_LANGUAGE = "Так это же уже на этом языке!"
+SUMMARIZING = "🔍 Делаю краткое содержание..."
+SUMMARY_HEADER = "Вот краткое содержание:"
+SUMMARY_FAILED = "Хм, не получилось собрать краткое содержание. Попробуем ещё раз?"
 # "твоя расшифровка" - EXPORT_LABEL_TRANSCRIPT is feminine, so this must
 # agree as "твоя", not the "твой" that fit the old masculine "перевод" label.
 EXPORT_READY_CAPTION = "Вот твоя {label} в формате *{file_format}*."
