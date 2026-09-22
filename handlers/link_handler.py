@@ -135,7 +135,10 @@ def build_translate_language_keyboard(lang):
     """
 
     buttons = [
-        InlineKeyboardButton(msg.target_language_name(lang, code), callback_data=f"translate_to_{code}")
+        InlineKeyboardButton(
+            f"{msg.LANGUAGE_FLAGS[code]} {msg.target_language_name(lang, code)}",
+            callback_data=f"translate_to_{code}"
+        )
         for code in msg.SUPPORTED_LANGUAGES
     ]
     keyboard = [buttons[i:i + 2] for i in range(0, len(buttons), 2)]
