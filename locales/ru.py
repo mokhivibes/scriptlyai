@@ -1,6 +1,16 @@
 from utils.rich_text import DYNAMIC
+from utils.platform_emoji import YOUTUBE, INSTAGRAM, TIKTOK, FACEBOOK, X_TWITTER
 
 NATIVE_NAME = "Русский"
+
+# See en.py's _PLATFORM_LIST_PARTS for what this does and why.
+_PLATFORM_LIST_PARTS = [
+    ("🎥", YOUTUBE), (" YouTube, ", False),
+    ("📸", INSTAGRAM), (" Instagram, ", False),
+    ("🎵", TIKTOK), (" TikTok, ", False),
+    ("📘", FACEBOOK), (" Facebook или ", False),
+    ("✖️", X_TWITTER), (" X/Twitter", False),
+]
 
 LANGUAGE_CHANGED = (
     "Готово — теперь буду говорить с тобой *по-русски*!\n"
@@ -17,8 +27,9 @@ LANGUAGE_ONBOARDING_PARTS = [
     (DYNAMIC, False),
     ("! 👋 Отлично, буду говорить с тобой ", False),
     ("по-русски", True),
-    ("!\n\nПросто пришли мне ссылку — 🎥 YouTube, 📸 Instagram, 🎵 TikTok, "
-     "📘 Facebook или ✖️ X/Twitter — я ", False),
+    ("!\n\nПросто пришли мне ссылку — ", False),
+    *_PLATFORM_LIST_PARTS,
+    (" — я ", False),
     ("расшифрую и приведу текст в порядок", True),
     (".\n\n📄 Нужна копия?\n\nСделаю ", False),
     ("PDF", True),
@@ -36,9 +47,9 @@ START_TEXT_PARTS = [
     (DYNAMIC, False),
     ("! 👋 Я ", False),
     ("ScriptlyAI", True),
-    ("!\n\nПрисылай мне ссылку на видео — 🎥 YouTube, 📸 Instagram, 🎵 "
-     "TikTok, 📘 Facebook или ✖️ X/Twitter — расшифрую, что там говорят, "
-     "и приведу ", False),
+    ("!\n\nПрисылай мне ссылку на видео — ", False),
+    *_PLATFORM_LIST_PARTS,
+    (" — расшифрую, что там говорят, и приведу ", False),
     ("текст в порядок", True),
     (".\n\n📄 Нужна копия?\n\nМогу сделать ", False),
     ("PDF", True),

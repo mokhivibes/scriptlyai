@@ -1,6 +1,16 @@
 from utils.rich_text import DYNAMIC
+from utils.platform_emoji import YOUTUBE, INSTAGRAM, TIKTOK, FACEBOOK, X_TWITTER
 
 NATIVE_NAME = "العربية"
+
+# See en.py's _PLATFORM_LIST_PARTS for what this does and why.
+_PLATFORM_LIST_PARTS = [
+    ("🎥", YOUTUBE), (" يوتيوب، ", False),
+    ("📸", INSTAGRAM), (" إنستغرام، ", False),
+    ("🎵", TIKTOK), (" تيك توك، ", False),
+    ("📘", FACEBOOK), (" فيسبوك، أو ", False),
+    ("✖️", X_TWITTER), (" إكس/تويتر", False),
+]
 
 LANGUAGE_CHANGED = (
     "تمام، من الآن سأتحدث معك *بالعربية*!\n"
@@ -18,8 +28,9 @@ LANGUAGE_ONBOARDING_PARTS = [
     (DYNAMIC, False),
     ("! 👋 تمام، من الآن سأتحدث معك ", False),
     ("بالعربية", True),
-    ("!\n\nفقط أرسل لي رابطاً — 🎥 يوتيوب، 📸 إنستغرام، 🎵 تيك توك، 📘 "
-     "فيسبوك، أو ✖️ إكس/تويتر — ", False),
+    ("!\n\nفقط أرسل لي رابطاً — ", False),
+    *_PLATFORM_LIST_PARTS,
+    (" — ", False),
     ("أدوّنه وأنظفه لك", True),
     (".\n\n📄 تريد نسخة تحتفظ بها؟\n\nأجهّزها بصيغة ", False),
     ("PDF", True),
@@ -37,8 +48,9 @@ START_TEXT_PARTS = [
     (DYNAMIC, False),
     ("! 👋 أنا ", False),
     ("ScriptlyAI", True),
-    ("!\n\nأرسل لي رابط فيديو — 🎥 يوتيوب، 📸 إنستغرام، 🎵 تيك توك، 📘 "
-     "فيسبوك، أو ✖️ إكس/تويتر — وسأحوّل ما يُقال فيه إلى ", False),
+    ("!\n\nأرسل لي رابط فيديو — ", False),
+    *_PLATFORM_LIST_PARTS,
+    (" — وسأحوّل ما يُقال فيه إلى ", False),
     ("نص واضح ومرتب", True),
     (".\n\n📄 تريد نسخة؟\n\nأجهّزها لك بصيغة ", False),
     ("PDF", True),

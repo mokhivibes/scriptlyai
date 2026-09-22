@@ -1,6 +1,16 @@
 from utils.rich_text import DYNAMIC
+from utils.platform_emoji import YOUTUBE, INSTAGRAM, TIKTOK, FACEBOOK, X_TWITTER
 
 NATIVE_NAME = "Oʻzbek"
+
+# See en.py's _PLATFORM_LIST_PARTS for what this does and why.
+_PLATFORM_LIST_PARTS = [
+    ("🎥", YOUTUBE), (" YouTube, ", False),
+    ("📸", INSTAGRAM), (" Instagram, ", False),
+    ("🎵", TIKTOK), (" TikTok, ", False),
+    ("📘", FACEBOOK), (" Facebook yoki ", False),
+    ("✖️", X_TWITTER), (" X/Twitter", False),
+]
 
 LANGUAGE_CHANGED = (
     "Boʻldi — bundan buyon *oʻzbekcha* gaplashaman!\n"
@@ -17,8 +27,9 @@ LANGUAGE_ONBOARDING_PARTS = [
     (DYNAMIC, False),
     ("! 👋 Ajoyib! Bundan buyon ", False),
     ("oʻzbekcha", True),
-    (" gaplashaman!\n\nMenga havola yuboring — 🎥 YouTube, 📸 Instagram, "
-     "🎵 TikTok, 📘 Facebook yoki ✖️ X/Twitter — men uni ", False),
+    (" gaplashaman!\n\nMenga havola yuboring — ", False),
+    *_PLATFORM_LIST_PARTS,
+    (" — men uni ", False),
     ("yozib olib, tozalayman", True),
     (".\n\n📄 Nusxa kerakmi?\n\n", False),
     ("PDF", True),
@@ -36,9 +47,9 @@ START_TEXT_PARTS = [
     (DYNAMIC, False),
     ("! 👋 Men ", False),
     ("ScriptlyAI", True),
-    ("'man!\n\nMenga video havolasini yuboring — 🎥 YouTube, 📸 Instagram, "
-     "🎵 TikTok, 📘 Facebook yoki ✖️ X/Twitter — aytilganlarni toza va "
-     "oʻqilishi ", False),
+    ("'man!\n\nMenga video havolasini yuboring — ", False),
+    *_PLATFORM_LIST_PARTS,
+    (" — aytilganlarni toza va oʻqilishi ", False),
     ("oson matnga", True),
     (" aylantirib beraman.\n\n📄 Nusxa kerakmi?\n\n", False),
     ("PDF", True),

@@ -1,6 +1,20 @@
 from utils.rich_text import DYNAMIC
+from utils.platform_emoji import YOUTUBE, INSTAGRAM, TIKTOK, FACEBOOK, X_TWITTER
 
 NATIVE_NAME = "English"
+
+# The branded platform-icon segment shared by both PARTS messages below -
+# each icon is its own (placeholder_emoji, custom_emoji_id) part so
+# Telegram overlays the real brand icon on top of the plain-emoji
+# placeholder (falls back to the placeholder on clients that don't
+# support custom emoji, so this degrades gracefully rather than breaking).
+_PLATFORM_LIST_PARTS = [
+    ("🎥", YOUTUBE), (" YouTube, ", False),
+    ("📸", INSTAGRAM), (" Instagram, ", False),
+    ("🎵", TIKTOK), (" TikTok, ", False),
+    ("📘", FACEBOOK), (" Facebook, or ", False),
+    ("✖️", X_TWITTER), (" X/Twitter", False),
+]
 
 LANGUAGE_CHANGED = (
     "Got it — I'll speak *English* from now on!\n"
@@ -19,8 +33,9 @@ LANGUAGE_ONBOARDING_PARTS = [
     (DYNAMIC, False),
     ("! 👋 Great, I'll speak ", False),
     ("English", True),
-    (" with you from now on!\n\nJust send me a link — 🎥 YouTube, 📸 "
-     "Instagram, 🎵 TikTok, 📘 Facebook, or ✖️ X/Twitter — and I'll ", False),
+    (" with you from now on!\n\nJust send me a link — ", False),
+    *_PLATFORM_LIST_PARTS,
+    (" — and I'll ", False),
     ("transcribe it and clean it up", True),
     (".\n\n📄 Want a copy?\n\nI can export it as a ", False),
     ("PDF", True),
@@ -39,8 +54,9 @@ START_TEXT_PARTS = [
     (DYNAMIC, False),
     ("! 👋 I'm ", False),
     ("ScriptlyAI", True),
-    ("!\n\nSend me a video link — 🎥 YouTube, 📸 Instagram, 🎵 TikTok, 📘 "
-     "Facebook, or ✖️ X/Twitter — and I'll turn what's said into ", False),
+    ("!\n\nSend me a video link — ", False),
+    *_PLATFORM_LIST_PARTS,
+    (" — and I'll turn what's said into ", False),
     ("clean, readable text", True),
     (".\n\n📄 Want a copy?\n\nI can export it as a ", False),
     ("PDF", True),
