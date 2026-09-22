@@ -145,6 +145,13 @@ TRANSLATION_SAME_LANGUAGE = "That's already the language this is in!"
 SUMMARIZING = "🔍 Summarizing..."
 SUMMARY_HEADER = "Here's a quick summary:"
 SUMMARY_FAILED = "Hmm, I couldn't put a summary together. Mind trying again?"
+
+# Shown with the full 4-button menu (export/translate/summarize) right
+# after a transcript - deliberately more general than EXPORT_PROMPT
+# below, which is reused for the narrower 2-button save-only screen
+# shown after a translation or summary (where "pick a format" is
+# accurate again, since only export makes sense there).
+NEXT_ACTIONS_PROMPT = "What would you like to do with this?"
 EXPORT_READY_CAPTION = "Here's your {label} as a *{file_format}*."
 EXPORT_LABEL_TRANSCRIPT = "cleaned transcript"
 FILE_FORMAT_PDF = "PDF"

@@ -128,6 +128,10 @@ TRANSLATION_SAME_LANGUAGE = "Bu allaqachon shu tilda-ku!"
 SUMMARIZING = "🔍 Qisqacha mazmunini tayyorlayapman..."
 SUMMARY_HEADER = "Mana qisqacha mazmuni:"
 SUMMARY_FAILED = "Voy, qisqacha mazmunini tayyorlay olmadim. Yana urinib koʻramizmi?"
+
+# See en.py's NEXT_ACTIONS_PROMPT comment for why this is separate from
+# EXPORT_PROMPT below.
+NEXT_ACTIONS_PROMPT = "Bu bilan nima qilishni xohlaysiz?"
 EXPORT_READY_CAPTION = "Mana {label} — *{file_format}* formatida."
 EXPORT_LABEL_TRANSCRIPT = "tozalangan matn"
 FILE_FORMAT_PDF = "PDF"

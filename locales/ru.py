@@ -127,6 +127,10 @@ TRANSLATION_SAME_LANGUAGE = "Так это же уже на этом языке!
 SUMMARIZING = "🔍 Делаю краткое содержание..."
 SUMMARY_HEADER = "Вот краткое содержание:"
 SUMMARY_FAILED = "Хм, не получилось собрать краткое содержание. Попробуем ещё раз?"
+
+# See en.py's NEXT_ACTIONS_PROMPT comment for why this is separate from
+# EXPORT_PROMPT below.
+NEXT_ACTIONS_PROMPT = "Что бы ты хотел(а) сделать с этим?"
 # "твоя расшифровка" - EXPORT_LABEL_TRANSCRIPT is feminine, so this must
 # agree as "твоя", not the "твой" that fit the old masculine "перевод" label.
 EXPORT_READY_CAPTION = "Вот твоя {label} в формате *{file_format}*."

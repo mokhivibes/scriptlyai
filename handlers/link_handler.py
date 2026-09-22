@@ -103,6 +103,27 @@ def build_export_keyboard(lang):
     return InlineKeyboardMarkup(keyboard)
 
 
+def build_save_keyboard(lang):
+    """
+    A smaller export-only keyboard (no Translate/Summary) shown after a
+    translation or summary - Translate/Summary always operate on the
+    ORIGINAL transcript (context.user_data["last_transcript"], never
+    overwritten), so offering them again here would either be a no-op
+    repeat or, worse, imply "translate this translation" / "summarize
+    this summary", neither of which this bot is set up to do sensibly.
+    Saving what's currently on screen, on the other hand, always makes
+    sense - see _handle_export's comment on export_text/export_language.
+    """
+
+    keyboard = [
+        [
+            InlineKeyboardButton(msg.t(lang, "EXPORT_PDF_BUTTON"), callback_data="export_pdf"),
+            InlineKeyboardButton(msg.t(lang, "EXPORT_TXT_BUTTON"), callback_data="export_txt"),
+        ],
+    ]
+    return InlineKeyboardMarkup(keyboard)
+
+
 def build_translate_language_keyboard(lang):
     """
     Target-language picker for translation - deliberately separate from
@@ -398,6 +419,14 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
 
         context.user_data["last_transcript"] = cleaned_transcript
         context.user_data["detected_language"] = detected_language
+        # export_text/export_language track whatever's CURRENTLY on screen
+        # (the original transcript, or a translation/summary of it) - see
+        # build_save_keyboard()'s comment for why this is separate from
+        # last_transcript/detected_language, which always stay the
+        # original (Translate/Summary always operate on the source, never
+        # on a translation-of-a-translation).
+        context.user_data["export_text"] = cleaned_transcript
+        context.user_data["export_language"] = detected_language
 
         add_transcript(
             user_id=user_id,
@@ -413,7 +442,7 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
 
         await call_with_retry(
             message.reply_text,
-            msg.t(lang, "EXPORT_PROMPT"),
+            msg.t(lang, "NEXT_ACTIONS_PROMPT"),
             reply_markup=build_export_keyboard(lang)
         )
 
@@ -530,8 +559,14 @@ async def _handle_cancel_long_content(query, context, lang):
 
 
 async def _handle_export(query, context, lang, data):
-    transcript = context.user_data.get("last_transcript")
-    detected_language = context.user_data.get("detected_language", "en")
+    # Reads export_text/export_language, NOT last_transcript/
+    # detected_language - this exports whatever's CURRENTLY on screen
+    # (the original transcript, or a translation/summary of it), which is
+    # what "save this" should mean regardless of which screen the user
+    # tapped it from. Falls back to last_transcript for any older
+    # in-flight session that set that but not export_text yet.
+    transcript = context.user_data.get("export_text") or context.user_data.get("last_transcript")
+    detected_language = context.user_data.get("export_language") or context.user_data.get("detected_language", "en")
 
     if not transcript:
         await call_with_retry(query.message.reply_text, msg.t(lang, "NO_TRANSCRIPT_SAVED"), parse_mode="Markdown")
@@ -616,6 +651,20 @@ async def _handle_translate_to(query, context, lang, target_code):
         # unpredictable, so no parse_mode, same reasoning as the transcript
         # itself throughout this file.
         await send_long_text(query.message, translated)
+
+        # Now the translation (not the original) is what's on screen, so
+        # that's what "save this" should export - see build_save_keyboard's
+        # comment. export_language becomes the TRANSLATION's language
+        # (target_code), not the original - matters for PDF's RTL/Arabic
+        # reshaping if translating into/out of Arabic.
+        context.user_data["export_text"] = translated
+        context.user_data["export_language"] = target_code
+
+        await call_with_retry(
+            query.message.reply_text,
+            msg.t(lang, "EXPORT_PROMPT"),
+            reply_markup=build_save_keyboard(lang)
+        )
     except Exception as error:
         logger.exception(f"Translation failed: {type(error).__name__}: {error}")
         await call_with_retry(status_message.edit_text, msg.t(lang, "TRANSLATION_FAILED"), parse_mode="Markdown")
@@ -638,6 +687,19 @@ async def _handle_summarize(query, context, lang):
         # summary is AI-generated from transcript content - genuinely
         # unpredictable, so no parse_mode, same reasoning as elsewhere.
         await call_with_retry(query.message.reply_text, summary)
+
+        # Now the summary (not the full transcript) is what's on screen -
+        # see build_save_keyboard's comment. Language stays the original
+        # detected_language - summarize_transcript() keeps the transcript's
+        # own language, it doesn't translate.
+        context.user_data["export_text"] = summary
+        context.user_data["export_language"] = context.user_data.get("detected_language", "en")
+
+        await call_with_retry(
+            query.message.reply_text,
+            msg.t(lang, "EXPORT_PROMPT"),
+            reply_markup=build_save_keyboard(lang)
+        )
     except Exception as error:
         logger.exception(f"Summarization failed: {type(error).__name__}: {error}")
         await call_with_retry(status_message.edit_text, msg.t(lang, "SUMMARY_FAILED"), parse_mode="Markdown")
@@ -659,10 +721,12 @@ async def _handle_history_select(query, context, lang, transcript_id_raw):
     _id, platform, detected_language, title, transcript_text, created_at = row
 
     # Selecting a history entry makes it the active transcript, so any
-    # export tap afterward applies to this one, not whatever was active
-    # before.
+    # export/translate/summarize tap afterward applies to this one, not
+    # whatever was active before.
     context.user_data["last_transcript"] = transcript_text
     context.user_data["detected_language"] = detected_language
+    context.user_data["export_text"] = transcript_text
+    context.user_data["export_language"] = detected_language
 
     short_date = msg.format_short_date(lang, created_at)
     await call_with_retry(
@@ -674,6 +738,6 @@ async def _handle_history_select(query, context, lang, transcript_id_raw):
 
     await call_with_retry(
         query.message.reply_text,
-        msg.t(lang, "EXPORT_PROMPT"),
+        msg.t(lang, "NEXT_ACTIONS_PROMPT"),
         reply_markup=build_export_keyboard(lang)
     )

@@ -127,6 +127,10 @@ TRANSLATION_SAME_LANGUAGE = "هذا أصلاً بهذه اللغة!"
 SUMMARIZING = "🔍 ألخّص الآن..."
 SUMMARY_HEADER = "إليك ملخصاً سريعاً:"
 SUMMARY_FAILED = "للأسف لم أتمكن من تجهيز الملخص. هل تريد المحاولة مرة أخرى؟"
+
+# See en.py's NEXT_ACTIONS_PROMPT comment for why this is separate from
+# EXPORT_PROMPT below.
+NEXT_ACTIONS_PROMPT = "ماذا تريد أن تفعل بهذا؟"
 EXPORT_READY_CAPTION = "إليك {label} بصيغة *{file_format}*."
 EXPORT_LABEL_TRANSCRIPT = "النص المنظّم"
 FILE_FORMAT_PDF = "PDF"
