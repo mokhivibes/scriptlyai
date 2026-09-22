@@ -3,6 +3,7 @@ from datetime import datetime
 from importlib import import_module
 
 from utils.rich_text import build_bold_message, resolve_parts
+from utils.platform_emoji import PLATFORM_EMOJI_IDS, PLATFORM_PLACEHOLDER_EMOJIS
 
 DEFAULT_LANGUAGE = "en"
 SUPPORTED_LANGUAGES = ("en", "ru", "ar", "uz")
@@ -155,8 +156,34 @@ def unsupported_message_text(lang):
     return build_bold_message(_locale(lang).UNSUPPORTED_MESSAGE_PARTS)
 
 
-def downloading_message(lang, platform: str) -> str:
-    return random.choice(_locale(lang).DOWNLOADING).format(platform=platform)
+def history_empty_text(lang):
+    """Returns (text, entities) - see help_text() above for why."""
+    return build_bold_message(_locale(lang).HISTORY_EMPTY_PARTS)
+
+
+def downloading_message(lang, platform_key: str, platform_name: str):
+    """
+    Returns (text, entities) - picks one of the 3 randomized phrasings
+    and builds the branded platform icon (custom emoji) + bolded name
+    into it via build_bold_message, the same entity-based approach used
+    for the welcome/help messages (see rich_text.py) - a template string
+    substitution can't carry a custom emoji entity, only build_bold_message
+    can place one at a known position.
+    """
+
+    prefix, suffix = random.choice(_locale(lang).DOWNLOADING_TEMPLATES)
+    icon = PLATFORM_PLACEHOLDER_EMOJIS.get(platform_key, "")
+    emoji_id = PLATFORM_EMOJI_IDS.get(platform_key)
+
+    parts = [(prefix, False)]
+    if icon and emoji_id:
+        parts.append((icon, emoji_id))
+        parts.append((f" {platform_name}", True))
+    else:
+        parts.append((platform_name, True))
+    parts.append((suffix, False))
+
+    return build_bold_message(parts)
 
 
 def extracting_audio_message(lang) -> str:

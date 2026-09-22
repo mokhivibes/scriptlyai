@@ -13,7 +13,7 @@ _PLATFORM_LIST_PARTS = [
 ]
 
 LANGUAGE_CHANGED = (
-    "Boʻldi — bundan buyon *oʻzbekcha* gaplashaman!\n"
+    "Boʻldi — bundan buyon 🇺🇿 *oʻzbekcha* gaplashaman!\n"
     "Boshlash uchun havola yuboring, yoki /help deb yozing."
 )
 
@@ -25,12 +25,16 @@ LANGUAGE_CHANGED = (
 LANGUAGE_ONBOARDING_PARTS = [
     ("Salom, ", False),
     (DYNAMIC, False),
-    ("! 👋 Ajoyib! Bundan buyon ", False),
+    ("! 👋 Ajoyib! Bundan buyon 🇺🇿 ", False),
     ("oʻzbekcha", True),
     (" gaplashaman!\n\nMenga havola yuboring — ", False),
     *_PLATFORM_LIST_PARTS,
     (" — men uni ", False),
     ("yozib olib, tozalayman", True),
+    (". Boshqa tilga kerakmi? ", False),
+    ("Tarjima qilib beraman", True),
+    (". Qisqacha versiyasi kerakmi? Uni ham ", False),
+    ("qisqartirib beraman", True),
     (".\n\n📄 Nusxa kerakmi?\n\n", False),
     ("PDF", True),
     (" yoki matn ", False),
@@ -51,7 +55,11 @@ START_TEXT_PARTS = [
     *_PLATFORM_LIST_PARTS,
     (" — aytilganlarni toza va oʻqilishi ", False),
     ("oson matnga", True),
-    (" aylantirib beraman.\n\n📄 Nusxa kerakmi?\n\n", False),
+    (" aylantirib beraman. Boshqa tilga kerakmi? ", False),
+    ("Tarjima qilib beraman", True),
+    (". Qisqacha versiyasi kerakmi? Uni ham ", False),
+    ("qisqartirib beraman", True),
+    (".\n\n📄 Nusxa kerakmi?\n\n", False),
     ("PDF", True),
     (" yoki matn ", False),
     ("fayl", True),
@@ -66,12 +74,17 @@ HELP_TEXT_PARTS = [
     ("Menga ", False),
     *_PLATFORM_LIST_PARTS,
     (" havolasini yuboring — men uni tinglab, hammasini yozib olib, toza "
-     "holda qaytarib beraman.\nNusxa kerakmi? ", False),
+     "holda qaytarib beraman. Nutqli kontent bilan yaxshiroq ishlayman — "
+     "qoʻshiqlar bilan sekinroq va aniqligi pastroq boʻlishi mumkin.\n\n"
+     "Nusxa kerakmi? ", False),
     ("PDF", True),
     (" yoki matn ", False),
     ("fayli", True),
-    (" qilib bera olaman. Nutqli kontent bilan yaxshiroq ishlayman — "
-     "qoʻshiqlar bilan sekinroq va aniqligi pastroq boʻlishi mumkin.\n\n", False),
+    (" qilib bera olaman. Tarjima yoki qisqacha mazmuni kerakmi? Uni ham ", False),
+    ("tarjima", True),
+    (" yoki ", False),
+    ("qisqartirib", True),
+    (" bera olaman.\n\n", False),
     ("/history", True),
     (" — oldingi matnlaringizni koʻrish. ", False),
     ("/language", True),
@@ -82,10 +95,12 @@ HELP_TEXT_PARTS = [
     (" — yana salomlashish.", False),
 ]
 
-DOWNLOADING = [
-    "📥 *{platform}* havolangizdan audio olyapman...",
-    "📥 *{platform}*'dan hozir yuklab olyapman...",
-    "📥 *{platform}* audiosini tortib olyapman, biroz kuting.",
+# See en.py's DOWNLOADING_TEMPLATES comment for why this is
+# templates-with-a-gap rather than a {platform} string substitution.
+DOWNLOADING_TEMPLATES = [
+    ("📥 ", " havolangizdan audio olyapman..."),
+    ("📥 ", "'dan hozir yuklab olyapman..."),
+    ("📥 ", " audiosini tortib olyapman, biroz kuting."),
 ]
 EXTRACTING_AUDIO = [
     "✂️ Audioni hozir ajratyapman...",
@@ -197,7 +212,14 @@ CANCEL_HAD_DATA = (
 CANCEL_NOTHING = "*Hozircha bekor qiladigan narsa yoʻq* — men shunchaki kutyapman. Tayyor boʻlganingizda havola yuboring."
 
 HISTORY_HEADER = "Mana oxirgi matnlaringiz — qayta koʻrish uchun birortasini bosing:"
-HISTORY_EMPTY = "Hali hech qanday matningiz yoʻq — *YouTube* yoki *Instagram* havolasini yuboring, keyingi safar shu yerda paydo boʻladi."
+# See en.py's _PLATFORM_LIST_PARTS comment for why this is entity-based.
+HISTORY_EMPTY_PARTS = [
+    ("Hali hech qanday matningiz yoʻq — ", False),
+    ("🎥", YOUTUBE), (" YouTube", True),
+    (" yoki ", False),
+    ("📸", INSTAGRAM), (" Instagram", True),
+    (" havolasini yuboring, keyingi safar shu yerda paydo boʻladi.", False),
+]
 HISTORY_NOT_FOUND = "Buni topa olmadim — balki juda eski yoki oʻchirilgan boʻlishi mumkin. /history buyrugʻini yana sinab koʻring."
 
 PLATFORM_LABELS = {
@@ -209,10 +231,10 @@ PLATFORM_LABELS = {
 }
 
 TARGET_LANGUAGE_NAMES = {
-    "en": "Ingliz",
-    "ru": "Rus",
-    "ar": "Arab",
-    "uz": "Oʻzbek",
+    "en": "🇬🇧 Ingliz",
+    "ru": "🇷🇺 Rus",
+    "ar": "🇸🇦 Arab",
+    "uz": "🇺🇿 Oʻzbek",
 }
 UNKNOWN_LANGUAGE = "Nomaʼlum"
 

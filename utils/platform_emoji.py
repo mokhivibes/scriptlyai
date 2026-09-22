@@ -22,3 +22,27 @@ INSTAGRAM = "5319160079465857105"
 TIKTOK = "5327982530702359565"
 FACEBOOK = "6319109091100723141"
 X_TWITTER = "5440750315852803515"
+
+# Keyed by the platform identifiers used throughout the codebase
+# (utils/link_detector.py's detect_platform() return values) - lets
+# per-platform messages (e.g. the "Downloading from X..." progress
+# ticker) look up the right icon/id for whichever single platform is
+# active, the same way _PLATFORM_LIST_PARTS does for the full list.
+PLATFORM_EMOJI_IDS = {
+    "youtube": YOUTUBE,
+    "instagram": INSTAGRAM,
+    "tiktok": TIKTOK,
+    "facebook": FACEBOOK,
+    "twitter": X_TWITTER,
+}
+
+# Plain Unicode placeholder shown for clients that don't render custom
+# emoji, or where the actual character (not an entity) is needed - same
+# set already used in PLATFORM_LABELS/PLATFORM_EMOJIS elsewhere.
+PLATFORM_PLACEHOLDER_EMOJIS = {
+    "youtube": "🎥",
+    "instagram": "📸",
+    "tiktok": "🎵",
+    "facebook": "📘",
+    "twitter": "✖️",
+}

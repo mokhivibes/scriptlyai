@@ -139,10 +139,12 @@ def build_translate_language_keyboard(lang, exclude_code=None):
     rather than shown and then rejected.
     """
 
+    # target_language_name() already includes the flag (TARGET_LANGUAGE_NAMES
+    # in each locale) - no need to prepend msg.LANGUAGE_FLAGS separately here.
     codes = [code for code in msg.SUPPORTED_LANGUAGES if code != exclude_code]
     buttons = [
         InlineKeyboardButton(
-            f"{msg.LANGUAGE_FLAGS[code]} {msg.target_language_name(lang, code)}",
+            msg.target_language_name(lang, code),
             callback_data=f"translate_to_{code}"
         )
         for code in codes
@@ -318,10 +320,11 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
     # One status message, edited in place through each processing step,
     # instead of sending a new message per step - keeps the chat from
     # filling up with transient "still working on it" messages.
-    # parse_mode is safe here: platform_name comes from the fixed dict
-    # above (exactly 4 known values), never from unpredictable content.
+    # downloading_message returns (text, entities) - see its docstring
+    # for why (branded platform icon via custom emoji entity).
+    downloading_text, downloading_entities = msg.downloading_message(lang, platform, platform_name)
     status_message = await call_with_retry(
-        message.reply_text, msg.downloading_message(lang, platform_name), parse_mode="Markdown"
+        message.reply_text, downloading_text, entities=downloading_entities
     )
 
     try:

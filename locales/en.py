@@ -17,7 +17,7 @@ _PLATFORM_LIST_PARTS = [
 ]
 
 LANGUAGE_CHANGED = (
-    "Got it — I'll speak *English* from now on!\n"
+    "Got it — I'll speak 🇬🇧 *English* from now on!\n"
     "Send me a link to get started, or /help for the full picture."
 )
 
@@ -31,13 +31,17 @@ LANGUAGE_CHANGED = (
 LANGUAGE_ONBOARDING_PARTS = [
     ("Hey ", False),
     (DYNAMIC, False),
-    ("! 👋 Great, I'll speak ", False),
+    ("! 👋 Great, I'll speak 🇬🇧 ", False),
     ("English", True),
     (" with you from now on!\n\nJust send me a link — ", False),
     *_PLATFORM_LIST_PARTS,
     (" — and I'll ", False),
     ("transcribe it and clean it up", True),
-    (".\n\n📄 Want a copy?\n\nI can export it as a ", False),
+    (". Want it in another language? I can ", False),
+    ("translate", True),
+    (" it. Need the short version? I'll ", False),
+    ("summarize", True),
+    (" it too.\n\n📄 Want a copy?\n\nI can export it as a ", False),
     ("PDF", True),
     (" or ", False),
     ("text file", True),
@@ -58,7 +62,11 @@ START_TEXT_PARTS = [
     *_PLATFORM_LIST_PARTS,
     (" — and I'll turn what's said into ", False),
     ("clean, readable text", True),
-    (".\n\n📄 Want a copy?\n\nI can export it as a ", False),
+    (". Want it in another language? I can ", False),
+    ("translate", True),
+    (" it. Need the short version? I'll ", False),
+    ("summarize", True),
+    (" it too.\n\n📄 Want a copy?\n\nI can export it as a ", False),
     ("PDF", True),
     (" or ", False),
     ("text file", True),
@@ -74,12 +82,17 @@ HELP_TEXT_PARTS = [
     ("Send me a ", False),
     *_PLATFORM_LIST_PARTS,
     (" link and I'll listen to it, write it all down, and hand it back to "
-     "you clean.\nWant a copy to keep? I can export it as a ", False),
+     "you clean. Works best on spoken content — music or singing can "
+     "take longer and come out less accurate.\n\nWant a copy to keep? "
+     "I can export it as a ", False),
     ("PDF", True),
     (" or ", False),
     ("text file", True),
-    (". Works best on spoken content — music or singing can take longer "
-     "and come out less accurate.\n\n", False),
+    (". Want it in another language, or just the highlights? I can also ", False),
+    ("translate", True),
+    (" or ", False),
+    ("summarize", True),
+    (" it.\n\n", False),
     ("/history", True),
     (" to revisit past transcripts. ", False),
     ("/language", True),
@@ -91,10 +104,15 @@ HELP_TEXT_PARTS = [
 ]
 
 # --- Progress messages (randomized so repeat users see some variety) ---
-DOWNLOADING = [
-    "📥 Grabbing the audio from your *{platform}* link...",
-    "📥 On it — pulling this down from *{platform}* now.",
-    "📥 Fetching your *{platform}* audio, hang tight.",
+# (prefix, suffix) around the platform mention - see
+# utils/messages.py's downloading_message_rich() for why this is
+# templates-with-a-gap rather than a {platform} string substitution:
+# the branded platform icon needs a custom emoji entity, which can only
+# be built structurally (see rich_text.py), not via string formatting.
+DOWNLOADING_TEMPLATES = [
+    ("📥 Grabbing the audio from your ", " link..."),
+    ("📥 On it — pulling this down from ", " now."),
+    ("📥 Fetching your ", " audio, hang tight."),
 ]
 EXTRACTING_AUDIO = [
     "✂️ Pulling the audio out now...",
@@ -228,7 +246,14 @@ CANCEL_NOTHING = "*Nothing to cancel* right now — I'm just here waiting. Send 
 
 # --- /history ---
 HISTORY_HEADER = "Here's your last few transcripts — tap one to see it again:"
-HISTORY_EMPTY = "You don't have any transcripts yet — send me a *YouTube* or *Instagram* link and it'll show up here next time."
+# See en.py's _PLATFORM_LIST_PARTS comment for why this is entity-based.
+HISTORY_EMPTY_PARTS = [
+    ("You don't have any transcripts yet — send me a ", False),
+    ("🎥", YOUTUBE), (" YouTube", True),
+    (" or ", False),
+    ("📸", INSTAGRAM), (" Instagram", True),
+    (" link and it'll show up here next time.", False),
+]
 HISTORY_NOT_FOUND = "Hmm, I couldn't find that one anymore — it may be too old or already gone. Try /history again."
 
 PLATFORM_LABELS = {
@@ -242,10 +267,10 @@ PLATFORM_LABELS = {
 # Display names for the video's SPOKEN (detected) language, shown in
 # /history entries - independent of the bot's own interface language.
 TARGET_LANGUAGE_NAMES = {
-    "en": "English",
-    "ru": "Russian",
-    "ar": "Arabic",
-    "uz": "Uzbek",
+    "en": "🇬🇧 English",
+    "ru": "🇷🇺 Russian",
+    "ar": "🇸🇦 Arabic",
+    "uz": "🇺🇿 Uzbek",
 }
 UNKNOWN_LANGUAGE = "Unknown"
 
