@@ -1,3 +1,5 @@
+from utils.rich_text import DYNAMIC
+
 NATIVE_NAME = "العربية"
 
 LANGUAGE_CHANGED = (
@@ -5,29 +7,47 @@ LANGUAGE_CHANGED = (
     "أرسل رابطاً للبدء، أو اكتب /help لمعرفة التفاصيل."
 )
 
-# Shown once, the first time a user ever picks a language - a fuller, warm
-# greeting rather than the short LANGUAGE_CHANGED confirmation used every
-# other time someone switches languages. Deliberately plain text, NOT
-# formatted - contains {first_name}, which is genuinely user-controlled
-# (a Telegram user can set their name to include a literal * or _), unlike
-# every other formatted message in this file, which is 100% developer text.
-LANGUAGE_ONBOARDING = (
-    "أهلاً {first_name}! 👋 تمام، من الآن سأتحدث معك بالعربية.\n\n"
-    "فقط أرسل لي رابطاً — 🎥 يوتيوب، 📸 إنستغرام، 🎵 تيك توك، 📘 فيسبوك، "
-    "أو ✖️ إكس/تويتر — أدوّنه وأنظفه لك ✨. تريد نسخة تحتفظ بها؟ أجهّزها "
-    "بصيغة PDF أو ملف نصي. 📄\n\n"
-    "أرسل رابطاً للبدء، أو اكتب /help لمعرفة التفاصيل."
-)
+# Shown once, the first time a user ever picks a language - see en.py's
+# LANGUAGE_ONBOARDING_PARTS for why this is parts-based (utils/rich_text.py)
+# rather than a Markdown string - DYNAMIC/{first_name} is genuinely
+# user-controlled, and entity-based bold is immune to that in a way
+# Markdown syntax scanning is not. Entity offsets work the same
+# regardless of RTL - Telegram handles bidi rendering itself.
+LANGUAGE_ONBOARDING_PARTS = [
+    ("أهلاً ", False),
+    (DYNAMIC, False),
+    ("! 👋 تمام، من الآن سأتحدث معك ", False),
+    ("بالعربية", True),
+    ("!\n\nفقط أرسل لي رابطاً — 🎥 يوتيوب، 📸 إنستغرام، 🎵 تيك توك، 📘 "
+     "فيسبوك، أو ✖️ إكس/تويتر — ", False),
+    ("أدوّنه وأنظفه لك", True),
+    (".\n\n📄 تريد نسخة تحتفظ بها؟\n\nأجهّزها بصيغة ", False),
+    ("PDF", True),
+    (" أو ", False),
+    ("ملف نصي", True),
+    ("!\n\nأرسل رابطاً للبدء، أو اكتب ", False),
+    ("/help", True),
+    (" لمعرفة التفاصيل!", False),
+]
 
-# START_TEXT also stays plain (no bold/italic) for the same {first_name}
-# reason as LANGUAGE_ONBOARDING above.
-START_TEXT = (
-    "أهلاً {first_name}! 👋 أنا ScriptlyAI.\n\n"
-    "أرسل لي رابط فيديو — 🎥 يوتيوب، 📸 إنستغرام، 🎵 تيك توك، 📘 فيسبوك، "
-    "أو ✖️ إكس/تويتر — وسأحوّل ما يُقال فيه إلى نص واضح ومرتب. ✨ تريد "
-    "نسخة؟ أجهّزها لك بصيغة PDF أو ملف نصي. 📄\n\n"
-    "لست متأكداً كيف يعمل؟ فقط اكتب /help."
-)
+# START_TEXT_PARTS - see LANGUAGE_ONBOARDING_PARTS above for why this is
+# parts-based rather than a Markdown string.
+START_TEXT_PARTS = [
+    ("أهلاً ", False),
+    (DYNAMIC, False),
+    ("! 👋 أنا ", False),
+    ("ScriptlyAI", True),
+    ("!\n\nأرسل لي رابط فيديو — 🎥 يوتيوب، 📸 إنستغرام، 🎵 تيك توك، 📘 "
+     "فيسبوك، أو ✖️ إكس/تويتر — وسأحوّل ما يُقال فيه إلى ", False),
+    ("نص واضح ومرتب", True),
+    (".\n\n📄 تريد نسخة؟\n\nأجهّزها لك بصيغة ", False),
+    ("PDF", True),
+    (" أو ", False),
+    ("ملف نصي", True),
+    ("!\n\nلست متأكداً كيف يعمل؟\n\nفقط اكتب ", False),
+    ("/help", True),
+    ("!", False),
+]
 HELP_TEXT = (
     "أرسل لي رابط من *يوتيوب* أو *إنستغرام* أو *تيك توك* أو *فيسبوك* أو "
     "*إكس/تويتر*، وسأستمع إليه، أدوّن كل ما فيه، ثم أعيده لك نظيفاً وواضحاً.\n"

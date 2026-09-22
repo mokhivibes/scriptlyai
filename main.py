@@ -95,12 +95,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # No logo here - it's shown exactly once, on the language-picker
     # message above, not on every subsequent /start from an already-set-up
-    # user. start_text embeds {first_name} (genuinely user-controlled) -
-    # stays plain, no parse_mode, same reasoning as elsewhere this string
-    # is used.
+    # user. start_text() returns (text, entities) - see rich_text.py for
+    # why {first_name} (genuinely user-controlled) gets entity-based bold
+    # instead of parse_mode="Markdown".
+    text, entities = msg.start_text(lang, user.first_name)
     await call_with_retry(
         update.message.reply_text,
-        msg.start_text(lang, user.first_name),
+        text,
+        entities=entities,
         reply_markup=build_shortcuts_keyboard(lang)
     )
 

@@ -1,3 +1,5 @@
+from utils.rich_text import DYNAMIC
+
 NATIVE_NAME = "English"
 
 LANGUAGE_CHANGED = (
@@ -7,28 +9,47 @@ LANGUAGE_CHANGED = (
 
 # Shown once, the first time a user ever picks a language - a fuller, warm
 # greeting rather than the short LANGUAGE_CHANGED confirmation used every
-# other time someone switches languages. Deliberately plain text, NOT
-# formatted - contains {first_name}, which is genuinely user-controlled
-# (a Telegram user can set their name to include a literal * or _), unlike
-# every other formatted message in this file, which is 100% developer text.
-LANGUAGE_ONBOARDING = (
-    "Hey {first_name}! 👋 Great, I'll speak English with you from now on.\n\n"
-    "Just send me a link — 🎥 YouTube, 📸 Instagram, 🎵 TikTok, 📘 Facebook, "
-    "or ✖️ X/Twitter — and I'll transcribe it and clean it up ✨. Want a "
-    "copy? I can export it as a PDF or text file. 📄\n\n"
-    "Send a link to get started, or /help for the full picture."
-)
+# other time someone switches languages. Built as PARTS (see
+# utils/rich_text.py) rather than a Markdown string - {first_name}/DYNAMIC
+# is genuinely user-controlled (a Telegram user can set their name to
+# include a literal * or _), and entity-based bold is immune to that in a
+# way Markdown syntax scanning is not.
+LANGUAGE_ONBOARDING_PARTS = [
+    ("Hey ", False),
+    (DYNAMIC, False),
+    ("! 👋 Great, I'll speak ", False),
+    ("English", True),
+    (" with you from now on!\n\nJust send me a link — 🎥 YouTube, 📸 "
+     "Instagram, 🎵 TikTok, 📘 Facebook, or ✖️ X/Twitter — and I'll ", False),
+    ("transcribe it and clean it up", True),
+    (".\n\n📄 Want a copy?\n\nI can export it as a ", False),
+    ("PDF", True),
+    (" or ", False),
+    ("text file", True),
+    ("!\n\nSend a link to get started, or type ", False),
+    ("/help", True),
+    (" for the full picture!", False),
+]
 
 # --- /start and /help ---
-# START_TEXT also stays plain (no bold/italic) for the same {first_name}
-# reason as LANGUAGE_ONBOARDING above.
-START_TEXT = (
-    "Hey there, {first_name}! 👋 I'm ScriptlyAI.\n\n"
-    "Send me a video link — 🎥 YouTube, 📸 Instagram, 🎵 TikTok, 📘 "
-    "Facebook, or ✖️ X/Twitter — and I'll turn what's said into clean, "
-    "readable text. ✨ Want a copy? I can export it as a PDF or text file. 📄\n\n"
-    "Not sure how it works? Just type /help."
-)
+# START_TEXT_PARTS - see LANGUAGE_ONBOARDING_PARTS above for why this is
+# parts-based rather than a Markdown string.
+START_TEXT_PARTS = [
+    ("Hey there, ", False),
+    (DYNAMIC, False),
+    ("! 👋 I'm ", False),
+    ("ScriptlyAI", True),
+    ("!\n\nSend me a video link — 🎥 YouTube, 📸 Instagram, 🎵 TikTok, 📘 "
+     "Facebook, or ✖️ X/Twitter — and I'll turn what's said into ", False),
+    ("clean, readable text", True),
+    (".\n\n📄 Want a copy?\n\nI can export it as a ", False),
+    ("PDF", True),
+    (" or ", False),
+    ("text file", True),
+    ("!\n\nNot sure how it works?\n\nJust type ", False),
+    ("/help", True),
+    ("!", False),
+]
 HELP_TEXT = (
     "Send me a *YouTube*, *Instagram*, *TikTok*, *Facebook*, or *X/Twitter* "
     "link and I'll listen to it, write it all down, and hand it back to "

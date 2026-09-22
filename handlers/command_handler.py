@@ -117,19 +117,22 @@ async def set_language_callback(update: Update, context: ContextTypes.DEFAULT_TY
     if is_first_time:
         # No logo here - it's shown exactly once, on the language-picker
         # message in main.py's start(), not repeated here right after.
-        # welcome_text embeds the user's own Telegram first name, which can
-        # contain anything (including a literal * or _) - kept plain text,
-        # no parse_mode, same reasoning as transcript/title content. The
-        # persistent shortcuts keyboard is attached here rather than on the
-        # language-picker message itself, since a message can only carry
-        # one keyboard type (inline XOR reply) - this is the first message
-        # after language selection completes, for either the first-time or
+        # welcome_text() returns (text, entities) - see rich_text.py for
+        # why the user's own Telegram first name (which can contain
+        # anything, including a literal * or _) gets entity-based bold
+        # instead of parse_mode="Markdown". The persistent shortcuts
+        # keyboard is attached here rather than on the language-picker
+        # message itself, since a message can only carry one keyboard
+        # type (inline XOR reply) - this is the first message after
+        # language selection completes, for either the first-time or
         # switching path.
         first_name = query.from_user.first_name or ""
         await call_with_retry(query.message.reply_sticker, STICKER_WELCOME)
+        text, entities = msg.welcome_text(language_code, first_name)
         await call_with_retry(
             query.message.reply_text,
-            msg.welcome_text(language_code, first_name),
+            text,
+            entities=entities,
             reply_markup=build_shortcuts_keyboard(language_code)
         )
     else:

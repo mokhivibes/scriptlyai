@@ -2,6 +2,8 @@ import random
 from datetime import datetime
 from importlib import import_module
 
+from utils.rich_text import build_bold_message, resolve_parts
+
 DEFAULT_LANGUAGE = "en"
 SUPPORTED_LANGUAGES = ("en", "ru", "ar", "uz")
 
@@ -108,18 +110,28 @@ def long_content_warning(lang, minutes) -> str:
     return _locale(lang).LONG_CONTENT_WARNING.format(minutes=round(minutes))
 
 
-def start_text(lang, first_name: str) -> str:
-    return _locale(lang).START_TEXT.format(first_name=first_name)
+def start_text(lang, first_name: str):
+    """
+    Returns (text, entities) - built from START_TEXT_PARTS via
+    build_bold_message rather than Markdown, since first_name is
+    genuinely user-controlled (see rich_text.py for why that matters).
+    Callers pass entities= to reply_text/reply_photo, not parse_mode=.
+    """
+    parts = resolve_parts(_locale(lang).START_TEXT_PARTS, first_name)
+    return build_bold_message(parts)
 
 
-def welcome_text(lang, first_name: str) -> str:
+def welcome_text(lang, first_name: str):
     """
     Shown once, the first time a user ever picks a language (via /start's
     picker or /language if that happens to be their first interaction) -
     distinct from LANGUAGE_CHANGED, which is the short confirmation shown
     every other time someone switches languages via /language.
+
+    Returns (text, entities) - see start_text() above for why.
     """
-    return _locale(lang).LANGUAGE_ONBOARDING.format(first_name=first_name)
+    parts = resolve_parts(_locale(lang).LANGUAGE_ONBOARDING_PARTS, first_name)
+    return build_bold_message(parts)
 
 
 def downloading_message(lang, platform: str) -> str:

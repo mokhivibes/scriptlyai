@@ -1,3 +1,5 @@
+from utils.rich_text import DYNAMIC
+
 NATIVE_NAME = "Oʻzbek"
 
 LANGUAGE_CHANGED = (
@@ -5,30 +7,48 @@ LANGUAGE_CHANGED = (
     "Boshlash uchun havola yuboring, yoki /help deb yozing."
 )
 
-# Shown once, the first time a user ever picks a language - a fuller, warm
-# greeting rather than the short LANGUAGE_CHANGED confirmation used every
-# other time someone switches languages. Deliberately plain text, NOT
-# formatted - contains {first_name}, which is genuinely user-controlled
-# (a Telegram user can set their name to include a literal * or _), unlike
-# every other formatted message in this file, which is 100% developer text.
-LANGUAGE_ONBOARDING = (
-    "Salom, {first_name}! 👋 Ajoyib! Bundan buyon oʻzbekcha gaplashaman.\n\n"
-    "Menga havola yuboring — 🎥 YouTube, 📸 Instagram, 🎵 TikTok, 📘 "
-    "Facebook yoki ✖️ X/Twitter — men uni yozib olib, tozalayman ✨. "
-    "Nusxa kerakmi? PDF yoki matn fayli qilib beraman. 📄\n\n"
-    "Boshlash uchun havola yuboring, yoki /help deb yozing."
-)
+# Shown once, the first time a user ever picks a language - see en.py's
+# LANGUAGE_ONBOARDING_PARTS for why this is parts-based (utils/rich_text.py)
+# rather than a Markdown string - DYNAMIC/{first_name} is genuinely
+# user-controlled, and entity-based bold is immune to that in a way
+# Markdown syntax scanning is not.
+LANGUAGE_ONBOARDING_PARTS = [
+    ("Salom, ", False),
+    (DYNAMIC, False),
+    ("! 👋 Ajoyib! Bundan buyon ", False),
+    ("oʻzbekcha", True),
+    (" gaplashaman!\n\nMenga havola yuboring — 🎥 YouTube, 📸 Instagram, "
+     "🎵 TikTok, 📘 Facebook yoki ✖️ X/Twitter — men uni ", False),
+    ("yozib olib, tozalayman", True),
+    (".\n\n📄 Nusxa kerakmi?\n\n", False),
+    ("PDF", True),
+    (" yoki matn ", False),
+    ("fayli", True),
+    (" qilib beraman!\n\nBoshlash uchun havola yuboring, yoki ", False),
+    ("/help", True),
+    (" deb yozing!", False),
+]
 
-# START_TEXT also stays plain (no bold/italic) for the same {first_name}
-# reason as LANGUAGE_ONBOARDING above.
-START_TEXT = (
-    "Salom, {first_name}! 👋 Men ScriptlyAI'man.\n\n"
-    "Menga video havolasini yuboring — 🎥 YouTube, 📸 Instagram, 🎵 "
-    "TikTok, 📘 Facebook yoki ✖️ X/Twitter — aytilganlarni toza va "
-    "oʻqilishi oson matnga aylantirib beraman. ✨ Nusxa kerakmi? PDF "
-    "yoki matn fayli qilib beraman. 📄\n\n"
-    "Qanday ishlashini bilmayapsizmi? /help deb yozing."
-)
+# START_TEXT_PARTS - see LANGUAGE_ONBOARDING_PARTS above for why this is
+# parts-based rather than a Markdown string.
+START_TEXT_PARTS = [
+    ("Salom, ", False),
+    (DYNAMIC, False),
+    ("! 👋 Men ", False),
+    ("ScriptlyAI", True),
+    ("'man!\n\nMenga video havolasini yuboring — 🎥 YouTube, 📸 Instagram, "
+     "🎵 TikTok, 📘 Facebook yoki ✖️ X/Twitter — aytilganlarni toza va "
+     "oʻqilishi ", False),
+    ("oson matnga", True),
+    (" aylantirib beraman.\n\n📄 Nusxa kerakmi?\n\n", False),
+    ("PDF", True),
+    (" yoki matn ", False),
+    ("fayl", True),
+    (" formatlarida qilib beraman!\n\nQanday ishlashini "
+     "bilmayapsizmi?\n\n", False),
+    ("/help", True),
+    (" deb yozing!", False),
+]
 HELP_TEXT = (
     "Menga *YouTube*, *Instagram*, *TikTok*, *Facebook* yoki *X/Twitter* "
     "havolasini yuboring — men uni tinglab, hammasini yozib olib, toza "
