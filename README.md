@@ -7,7 +7,7 @@ Transcription and cleanup run on [Groq's](https://groq.com) hosted API, on its f
 ## Features
 
 - **Platforms:** YouTube, Instagram, X/Twitter, TikTok (network-permitting — see [Known Limitations](#known-limitations)), Facebook.
-- **Pipeline:** download → extract audio → transcribe (Groq-hosted Whisper) → clean up (Groq-hosted LLM) → export (PDF/text).
+- **Pipeline:** download → extract audio → transcribe (Groq-hosted Whisper) → clean up (Groq-hosted LLM) → export (PDF/text), plus optional **translate** (into any supported language) and **AI summary** (3-5 bullet points) - see [Translation](#translation--re-enabled-despite-a-known-reliability-tradeoff) for a known reliability caveat on translation specifically.
 - **Interface localization:** every bot-facing string (not just the transcript) is available in English, Russian, Arabic, and Uzbek, chosen via `/language` and saved per user.
 - **History:** `/history` lists your last 10 transcripts; tap one to reopen it and re-export.
 - **Long-content warning:** before committing to anything over ~90 seconds, the bot checks the duration up front (no download yet) and asks for confirmation, rather than silently making someone wait several minutes for a result — cancelling stops before any download happens.
@@ -58,9 +58,11 @@ This project originally ran faster-whisper (medium model, ~1.4GB) and a local Ol
 
 One real tradeoff worth naming: this reintroduces an external-service dependency (rate limits, uptime, API changes) for a project that had deliberately avoided that so far, and got burned by exactly this category of risk once already (`translation_service.py` below). Groq's free tier is a clearly-documented, intentional offering rather than a scraped/reverse-engineered one, so it's a different risk profile - but it's not zero.
 
-### Why translation isn't in the pipeline
+### Translation — re-enabled despite a known reliability tradeoff
 
-`translation_service.py` (Google Translate via `deep-translator`) is fully implemented but **not called** from the bot. It was removed from the user-facing flow because the free translation backend proved unreliable under real usage (silent rate-limiting causing failures) — PDF/text export of the transcript itself has no such dependency and is fully local, so it was kept as the primary feature and translation was shelved. The file is left in place in case a paid or self-hosted translation backend replaces it later.
+`translation_service.py` (Google Translate via `deep-translator`) was originally built, then deliberately **shelved and left unwired** because the free translation backend proved unreliable under real usage (silent rate-limiting causing failures). It's wired back in now (a "🌐 Translate" button alongside export/summary), based on competitive research showing translation is a standard feature in comparable transcription bots - but the underlying reliability risk that caused the original shelving is unchanged and was re-confirmed live: repeated real requests from this dev machine hit `TooManyRequests` consistently, even after the built-in retry/backoff exhausted its attempts. This is a soft, rolling rate limit (not a permanent block), so it can recover on its own, but there's no guarantee it won't fail for a real user at some point. The failure is caught and shown as a normal "translation didn't go through" message, not a crash - this is a UX tradeoff being made consciously, not an oversight.
+
+A paid or self-hosted translation backend would remove this risk entirely if it becomes a real problem in practice.
 
 ### Safety nets worth knowing about
 
