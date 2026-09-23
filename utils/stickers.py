@@ -14,5 +14,11 @@ STICKER_WELCOME = "CAACAgIAAxUAAWqxwnZpO5e1-hFRepndT_NauvFIAAIMsgACNHOQSU4yM2CHp
 # right corner, static across every frame. Patched frame-by-frame in
 # assets/stickers/processing.webm and re-uploaded; file_id changed.
 STICKER_PROCESSING = "CAACAgIAAxUAAWq0HrFlWQyqoHNfCxOJdLRbk4D-AAIrswACO3OgSYU83OGnGim0PQQ"
-STICKER_DONE = "CAACAgIAAxUAAWqxwnbt5VwUOdJcC30OR2K6M9E0AAJNmQACBX-QSUXE3-htFZxBPQQ"
+# 2026-09-23: replaced via replaceStickerInSet - the original design
+# combined a big "S" letter (network-node overlay) with the checkmark
+# overlapping it, which read as cluttered/unclear at sticker size. Rebuilt
+# as a standalone checkmark only (assets/stickers/done_nobg.png,
+# done.webm - same pop-in-with-bounce animation, no S, no equalizer
+# bars); file_id changed.
+STICKER_DONE = "CAACAgIAAxUAAWq0KvusAfAVFwV3fQONcXvxkKOQAAJHqQAC2ZWhSTnXNd3x0oRhPQQ"
 STICKER_ERROR = "CAACAgIAAxUAAWqxwnY04CszPoWyUv_09pPqLL0NAAK0pwACJvmQSVkfh21UhsliPQQ"
