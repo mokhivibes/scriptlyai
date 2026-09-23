@@ -124,6 +124,20 @@ def build_save_keyboard(lang):
     return InlineKeyboardMarkup(keyboard)
 
 
+def build_summarize_retry_keyboard(lang):
+    """
+    A single-button keyboard attached to SUMMARY_FAILED so the retry it
+    promises ("tap the button below") is an actual tap target, not just
+    text - mirrors the retry buttons attached to EXPORT_FAILED and
+    TRANSLATION_FAILED. There's no shared "just the Summarize button"
+    builder elsewhere since build_export_keyboard always pairs it with
+    Translate, so this is its own small keyboard.
+    """
+
+    keyboard = [[InlineKeyboardButton(msg.t(lang, "SUMMARIZE_BUTTON"), callback_data="summarize")]]
+    return InlineKeyboardMarkup(keyboard)
+
+
 def build_translate_language_keyboard(lang, exclude_code=None):
     """
     Target-language picker for translation - deliberately separate from
@@ -635,7 +649,12 @@ async def _handle_export(query, context, lang, data):
 
     except Exception as error:
         logger.exception(f"Export failed: {type(error).__name__}: {error}")
-        await call_with_retry(query.message.reply_text, msg.t(lang, "EXPORT_FAILED"), parse_mode="Markdown")
+        await call_with_retry(
+            query.message.reply_text,
+            msg.t(lang, "EXPORT_FAILED"),
+            parse_mode="Markdown",
+            reply_markup=build_save_keyboard(lang),
+        )
 
     finally:
         if filepath and os.path.exists(filepath):
@@ -701,7 +720,12 @@ async def _handle_translate_to(query, context, lang, target_code):
         )
     except Exception as error:
         logger.exception(f"Translation failed: {type(error).__name__}: {error}")
-        await call_with_retry(status_message.edit_text, msg.t(lang, "TRANSLATION_FAILED"), parse_mode="Markdown")
+        await call_with_retry(
+            status_message.edit_text,
+            msg.t(lang, "TRANSLATION_FAILED"),
+            parse_mode="Markdown",
+            reply_markup=build_translate_language_keyboard(lang, exclude_code=detected_language),
+        )
 
 
 async def _handle_summarize(query, context, lang):
@@ -736,7 +760,12 @@ async def _handle_summarize(query, context, lang):
         )
     except Exception as error:
         logger.exception(f"Summarization failed: {type(error).__name__}: {error}")
-        await call_with_retry(status_message.edit_text, msg.t(lang, "SUMMARY_FAILED"), parse_mode="Markdown")
+        await call_with_retry(
+            status_message.edit_text,
+            msg.t(lang, "SUMMARY_FAILED"),
+            parse_mode="Markdown",
+            reply_markup=build_summarize_retry_keyboard(lang),
+        )
 
 
 async def _handle_history_select(query, context, lang, transcript_id_raw):

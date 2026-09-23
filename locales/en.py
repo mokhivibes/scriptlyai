@@ -136,7 +136,7 @@ AUDIO_CAPTION = "Here's the audio I pulled out 🎧"
 EXPORT_PDF_BUTTON = "📄 PDF"
 EXPORT_TXT_BUTTON = "📝 Text file"
 EXPORT_PROMPT = "Want a copy to keep? Pick a format below:"
-EXPORT_FAILED = "Hmm, I couldn't put that file together. Mind trying again?"
+EXPORT_FAILED = "Hmm, I couldn't put that file together. Tap the button below to try again."
 
 # --- Translate & Summarize (post-transcript actions, alongside export) ---
 TRANSLATE_BUTTON = "🌐 Translate"
@@ -144,11 +144,11 @@ SUMMARIZE_BUTTON = "🔍 Summarize"
 TRANSLATE_PICKER_PROMPT = "Which language should I translate it into?"
 TRANSLATING = "🌐 Translating..."
 TRANSLATION_HEADER = "Here's the translation:"
-TRANSLATION_FAILED = "Hmm, that translation didn't go through. Mind trying again?"
+TRANSLATION_FAILED = "Hmm, that translation didn't go through. Pick a language below to try again."
 TRANSLATION_SAME_LANGUAGE = "That's already the language this is in!"
 SUMMARIZING = "🔍 Summarizing..."
 SUMMARY_HEADER = "Here's a quick summary:"
-SUMMARY_FAILED = "Hmm, I couldn't put a summary together. Mind trying again?"
+SUMMARY_FAILED = "Hmm, I couldn't put a summary together. Tap the button below to try again."
 
 # Shown with the full 4-button menu (export/translate/summarize) right
 # after a transcript - deliberately more general than EXPORT_PROMPT
@@ -189,20 +189,20 @@ ERROR_PRIVATE = (
 )
 ERROR_UNAVAILABLE = (
     "I couldn't find this video — it might be *deleted*, *private*, or "
-    "*blocked* in some regions. Double check the link and try again?"
+    "*blocked* in some regions. Double check the link, then send it to me again."
 )
 ERROR_TIMEOUT = (
     "This one took *too long* to load — sometimes that happens with a slow "
-    "connection or a big file. Mind trying again?"
+    "connection or a big file. Send the link again and I'll give it another shot."
 )
 ERROR_NETWORK = "Looks like a *network hiccup* got in the way. Send the link again and let's try that one more time."
 ERROR_TOO_LARGE = (
     "This file's *too big* for me to send back through Telegram right now, "
-    "sorry about that. Maybe try a shorter clip?"
+    "sorry about that. Try sending me a shorter clip instead."
 )
 ERROR_GENERIC = (
     "*Something went wrong* on my end and I couldn't process this one. "
-    "Double check the link's valid and public, then give it another go?"
+    "Double check the link's valid and public, then send it to me again."
 )
 ERROR_NO_VIDEO = "This post doesn't seem to have a *video* in it — I can only work with posts that include one."
 ERROR_NO_AUDIO = "This video doesn't seem to have any *sound* in it — I can only work with videos that include audio."

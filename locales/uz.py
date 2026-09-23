@@ -114,18 +114,18 @@ AUDIO_CAPTION = "Mana men ajratib olgan audio 🎧"
 EXPORT_PDF_BUTTON = "📄 PDF"
 EXPORT_TXT_BUTTON = "📝 Matn fayli"
 EXPORT_PROMPT = "Nusxasini saqlab qolmoqchimisiz? Quyidan formatni tanlang:"
-EXPORT_FAILED = "Voy, faylni tayyorlay olmadim. Yana urinib koʻramizmi?"
+EXPORT_FAILED = "Voy, faylni tayyorlay olmadim. Qayta urinish uchun quyidagi tugmani bosing."
 
 TRANSLATE_BUTTON = "🌐 Tarjima qilish"
 SUMMARIZE_BUTTON = "🔍 Qisqartirish"
 TRANSLATE_PICKER_PROMPT = "Qaysi tilga tarjima qilay?"
 TRANSLATING = "🌐 Tarjima qilyapman..."
 TRANSLATION_HEADER = "Mana tarjima:"
-TRANSLATION_FAILED = "Voy, tarjima chiqmadi. Yana urinib koʻramizmi?"
+TRANSLATION_FAILED = "Voy, tarjima chiqmadi. Qayta urinish uchun quyidan tilni tanlang."
 TRANSLATION_SAME_LANGUAGE = "Bu allaqachon shu tilda-ku!"
 SUMMARIZING = "🔍 Qisqacha mazmunini tayyorlayapman..."
 SUMMARY_HEADER = "Mana qisqacha mazmuni:"
-SUMMARY_FAILED = "Voy, qisqacha mazmunini tayyorlay olmadim. Yana urinib koʻramizmi?"
+SUMMARY_FAILED = "Voy, qisqacha mazmunini tayyorlay olmadim. Qayta urinish uchun quyidagi tugmani bosing."
 
 # See en.py's NEXT_ACTIONS_PROMPT comment for why this is separate from
 # EXPORT_PROMPT below.
@@ -158,18 +158,18 @@ ERROR_PRIVATE = (
 )
 ERROR_UNAVAILABLE = (
     "Bu videoni topa olmadim — balki *oʻchirilgan*, *yopiq* yoki baʼzi "
-    "hududlarda *toʻsilgan* boʻlishi mumkin. Havolani tekshirib, qayta "
-    "urinib koʻrasizmi?"
+    "hududlarda *toʻsilgan* boʻlishi mumkin. Havolani tekshirib, menga "
+    "qayta yuboring."
 )
 ERROR_TIMEOUT = (
     "Bu *juda uzoq* yuklandi — bu sekin internet yoki katta fayl bilan "
-    "boʻlishi mumkin. Qayta urinib koʻrasizmi?"
+    "boʻlishi mumkin. Havolani qayta yuboring, men yana urinib koʻraman."
 )
 ERROR_NETWORK = "*Tarmoqda muammo* boʻldi shekilli. Havolani qayta yuboring, yana urinib koʻramiz."
-ERROR_TOO_LARGE = "Bu fayl hozir Telegram orqali yuborish uchun *juda katta*, uzr. Balki qisqaroq video sinab koʻrasiz?"
+ERROR_TOO_LARGE = "Bu fayl hozir Telegram orqali yuborish uchun *juda katta*, uzr. Qisqaroq video havolasini yuboring."
 ERROR_GENERIC = (
     "*Mening tomonimda nimadir xato ketdi* va buni qayta ishlay olmadim. "
-    "Havola toʻgʻri va ochiq ekanini tekshirib, yana urinib koʻrasizmi?"
+    "Havola toʻgʻri va ochiq ekanini tekshirib, menga qayta yuboring."
 )
 ERROR_NO_VIDEO = "Bu postda *video* yoʻqday koʻrinadi — men faqat video boʻlgan postlar bilan ishlayman."
 ERROR_NO_AUDIO = "Bu videoda *ovoz* yoʻqday koʻrinadi — men faqat ovozi bor videolar bilan ishlayman."
