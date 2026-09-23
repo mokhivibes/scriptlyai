@@ -63,20 +63,62 @@ def _get_uzbek_model():
     return _uzbek_model
 
 
+# Below this (forced language="uz" decode), the transcript is discarded as
+# an unreliable fabrication rather than a real transcription - see
+# _try_uzbek_fallback's docstring. Chosen from real measurements: genuine
+# Uzbek speech (4 clips, real news audio) scored -0.016 to -0.042; a
+# genuinely Kazakh clip and a genuinely Kyrgyz clip - both routed here by
+# UZBEK_MISDETECTION_CLUSTER but NOT actually Uzbek - scored -0.378 and
+# -0.187. -0.15 sits in the wide gap between those two clusters, closer to
+# the false-positive side so a real Uzbek clip has to be unusually noisy
+# before this rejects it.
+UZBEK_FALLBACK_MIN_AVG_LOGPROB = -0.15
+
+
 def _try_uzbek_fallback(audio_path: str):
     """
-    Runs the local Uzbek-specific model and returns its transcript, forcing
-    language="uz" since the trigger for calling this at all (Groq landing
-    in UZBEK_MISDETECTION_CLUSTER) is itself the evidence this is likely
-    Uzbek - see UZBEK_MISDETECTION_CLUSTER's comment. Returns None on any
-    failure (missing model directory, load error, etc.) so a problem with
-    this optional fallback never breaks the primary Groq result it's
-    trying to improve on.
+    Runs the local Uzbek-specific model (forced language="uz") and returns
+    its transcript - but only if the decode's own average log-probability
+    clears UZBEK_FALLBACK_MIN_AVG_LOGPROB, evidence the model is
+    confidently transcribing rather than fabricating.
+
+    This model's own free-form language auto-detection turned out to be
+    useless as a gate here (tested first, before this): fed genuinely
+    Kazakh and Kyrgyz clips - both routed to this fallback by
+    UZBEK_MISDETECTION_CLUSTER but not actually Uzbek - it correctly
+    refused to call them Uzbek. But fed genuinely correct, clean Uzbek
+    news audio, it ALSO refused to call it Uzbek (guessed "zh"/"fr"/"en"
+    at 20-40% confidence) - fine-tuning on Uzbek-only data appears to have
+    broken this model's free-form language ID entirely, in both
+    directions, making it useless as a signal either way.
+    forced-decode confidence (avg_logprob) doesn't have that problem: it
+    cleanly separated the same two false-positive clips (-0.378, -0.187)
+    from four genuine Uzbek segments (-0.016 to -0.042) with a wide,
+    unambiguous gap - a forced decode into the wrong language visibly
+    struggles even when free-form language ID does not.
+
+    Returns None (keeping Groq's original result) both on any failure
+    (missing model directory, load error, etc.) and when confidence is too
+    low - either way, this optional quality fallback should never
+    override Groq's result with something worse.
     """
 
     try:
         model = _get_uzbek_model()
         segments, _info = model.transcribe(audio_path, language="uz")
+        segments = list(segments)
+
+        if not segments:
+            return None
+
+        avg_logprob = sum(segment.avg_logprob for segment in segments) / len(segments)
+        if avg_logprob < UZBEK_FALLBACK_MIN_AVG_LOGPROB:
+            logger.info(
+                f"Uzbek fallback decode confidence too low (avg_logprob={avg_logprob:.3f}) - "
+                "discarding, keeping Groq's original result"
+            )
+            return None
+
         text = " ".join(segment.text.strip() for segment in segments).strip()
         return text or None
     except Exception:
