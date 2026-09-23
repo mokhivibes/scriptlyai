@@ -9,6 +9,10 @@
 # references it anymore. A Telegram file_id is permanent once uploaded -
 # no need to re-upload or re-fetch these on each send.
 STICKER_WELCOME = "CAACAgIAAxUAAWqxwnZpO5e1-hFRepndT_NauvFIAAIMsgACNHOQSU4yM2CHpzlNPQQ"
-STICKER_PROCESSING = "CAACAgIAAxUAAWqxwnaCMW4jG32dOUcO1BxpvZFcAAIVrwACrgOJSQtyUleD1DryPQQ"
+# 2026-09-23: replaced via replaceStickerInSet - the original render had a
+# small stray teal dot (leftover from background removal) near the bottom
+# right corner, static across every frame. Patched frame-by-frame in
+# assets/stickers/processing.webm and re-uploaded; file_id changed.
+STICKER_PROCESSING = "CAACAgIAAxUAAWq0HrFlWQyqoHNfCxOJdLRbk4D-AAIrswACO3OgSYU83OGnGim0PQQ"
 STICKER_DONE = "CAACAgIAAxUAAWqxwnbt5VwUOdJcC30OR2K6M9E0AAJNmQACBX-QSUXE3-htFZxBPQQ"
 STICKER_ERROR = "CAACAgIAAxUAAWqxwnY04CszPoWyUv_09pPqLL0NAAK0pwACJvmQSVkfh21UhsliPQQ"
