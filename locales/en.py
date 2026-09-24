@@ -136,7 +136,7 @@ AUDIO_CAPTION = "Here's the audio I pulled out 🎧"
 EXPORT_PDF_BUTTON = "📄 PDF"
 EXPORT_TXT_BUTTON = "📝 Text file"
 EXPORT_PROMPT = "Want a copy to keep? Pick a format below:"
-EXPORT_FAILED = "Hmm, I couldn't put that file together. Tap the button below to try again."
+EXPORT_FAILED = "📄 Hmm, I couldn't put that file together. _Tap the button below to try again._"
 
 # --- Translate & Summarize (post-transcript actions, alongside export) ---
 TRANSLATE_BUTTON = "🌐 Translate"
@@ -144,11 +144,11 @@ SUMMARIZE_BUTTON = "🔍 Summarize"
 TRANSLATE_PICKER_PROMPT = "Which language should I translate it into?"
 TRANSLATING = "🌐 Translating..."
 TRANSLATION_HEADER = "Here's the translation:"
-TRANSLATION_FAILED = "Hmm, that translation didn't go through. Pick a language below to try again."
+TRANSLATION_FAILED = "🌐 Hmm, that translation didn't go through. _Pick a language below to try again._"
 TRANSLATION_SAME_LANGUAGE = "That's already the language this is in!"
 SUMMARIZING = "🔍 Summarizing..."
 SUMMARY_HEADER = "Here's a quick summary:"
-SUMMARY_FAILED = "Hmm, I couldn't put a summary together. Tap the button below to try again."
+SUMMARY_FAILED = "🔍 Hmm, I couldn't put a summary together. _Tap the button below to try again._"
 
 # Shown with the full 4-button menu (export/translate/summarize) right
 # after a transcript - deliberately more general than EXPORT_PROMPT
@@ -182,41 +182,43 @@ UNSUPPORTED_MESSAGE_PARTS = [
     *_PLATFORM_LIST_PARTS,
     (" link instead.", False),
 ]
-# --- Errors (no emojis - clarity comes first when something's gone wrong) ---
+# --- Errors - one leading emoji per message (quick visual "what kind of
+# problem" cue at a glance) plus bold for the diagnosis and italic for the
+# actionable next step, so the two are visually distinct when scanning.
 ERROR_PRIVATE = (
-    "This looks like a *private* account or video — I can only grab stuff "
-    "that's public. If you can make it public, send me the link again."
+    "🔒 This looks like a *private* account or video — I can only grab stuff "
+    "that's public. _If you can make it public, send me the link again._"
 )
 ERROR_UNAVAILABLE = (
-    "I couldn't find this video — it might be *deleted*, *private*, or "
-    "*blocked* in some regions. Double check the link, then send it to me again."
+    "🚫 I couldn't find this video — it might be *deleted*, *private*, or "
+    "*blocked* in some regions. _Double check the link, then send it to me again._"
 )
 ERROR_TIMEOUT = (
-    "This one took *too long* to load — sometimes that happens with a slow "
-    "connection or a big file. Send the link again and I'll give it another shot."
+    "⏱️ This one took *too long* to load — sometimes that happens with a slow "
+    "connection or a big file. _Send the link again and I'll give it another shot._"
 )
-ERROR_NETWORK = "Looks like a *network hiccup* got in the way. Send the link again and let's try that one more time."
+ERROR_NETWORK = "📡 Looks like a *network hiccup* got in the way. _Send the link again and let's try that one more time._"
 ERROR_TOO_LARGE = (
-    "This file's *too big* for me to send back through Telegram right now, "
-    "sorry about that. Try sending me a shorter clip instead."
+    "📦 This file's *too big* for me to send back through Telegram right now, "
+    "sorry about that. _Try sending me a shorter clip instead._"
 )
 ERROR_GENERIC = (
-    "*Something went wrong* on my end and I couldn't process this one. "
-    "Double check the link's valid and public, then send it to me again."
+    "⚠️ *Something went wrong* on my end and I couldn't process this one. "
+    "_Double check the link's valid and public, then send it to me again._"
 )
-ERROR_NO_VIDEO = "This post doesn't seem to have a *video* in it — I can only work with posts that include one."
-ERROR_NO_AUDIO = "This video doesn't seem to have any *sound* in it — I can only work with videos that include audio."
+ERROR_NO_VIDEO = "🎬 This post doesn't seem to have a *video* in it — I can only work with posts that include one."
+ERROR_NO_AUDIO = "🔇 This video doesn't seem to have any *sound* in it — I can only work with videos that include audio."
 ERROR_RATE_LIMITED = (
-    "I'm getting a *lot of requests* right now and hit my limit — this isn't "
-    "about your link. Please wait a few minutes and send it again."
+    "⏳ I'm getting a *lot of requests* right now and hit my limit — this isn't "
+    "about your link. _Please wait a few minutes and send it again._"
 )
 
-NO_TRANSCRIPT_SAVED = "I don't have that transcript anymore — send me the link again and we'll start fresh."
+NO_TRANSCRIPT_SAVED = "🗂️ I don't have that transcript anymore — _send me the link again and we'll start fresh._"
 DAILY_LIMIT_REACHED = (
-    "You've hit today's *usage limit* so I can keep things fair for everyone "
-    "sharing the bot. Come back tomorrow and I'll be ready to go."
+    "📅 You've hit today's *usage limit* so I can keep things fair for everyone "
+    "sharing the bot. _Come back tomorrow and I'll be ready to go._"
 )
-STILL_WORKING = "*Still working* on your last one — give me a moment to finish that first!"
+STILL_WORKING = "⚙️ *Still working* on your last one — give me a moment to finish that first!"
 
 # --- Long-content confirmation (duration-based, shown before committing to
 # a multi-minute job) ---
@@ -248,7 +250,7 @@ HISTORY_EMPTY_PARTS = [
     ("📸", INSTAGRAM), (" Instagram", True),
     (" link and it'll show up here next time.", False),
 ]
-HISTORY_NOT_FOUND = "Hmm, I couldn't find that one anymore — it may be too old or already gone. Try /history again."
+HISTORY_NOT_FOUND = "📜 Hmm, I couldn't find that one anymore — it may be too old or already gone. _Try /history again._"
 
 PLATFORM_LABELS = {
     "youtube": "🎥 YouTube",

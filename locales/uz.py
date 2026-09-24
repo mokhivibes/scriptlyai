@@ -114,18 +114,18 @@ AUDIO_CAPTION = "Mana men ajratib olgan audio 🎧"
 EXPORT_PDF_BUTTON = "📄 PDF"
 EXPORT_TXT_BUTTON = "📝 Matn fayli"
 EXPORT_PROMPT = "Nusxasini saqlab qolmoqchimisiz? Quyidan formatni tanlang:"
-EXPORT_FAILED = "Voy, faylni tayyorlay olmadim. Qayta urinish uchun quyidagi tugmani bosing."
+EXPORT_FAILED = "📄 Voy, faylni tayyorlay olmadim. _Qayta urinish uchun quyidagi tugmani bosing._"
 
 TRANSLATE_BUTTON = "🌐 Tarjima qilish"
 SUMMARIZE_BUTTON = "🔍 Qisqartirish"
 TRANSLATE_PICKER_PROMPT = "Qaysi tilga tarjima qilay?"
 TRANSLATING = "🌐 Tarjima qilyapman..."
 TRANSLATION_HEADER = "Mana tarjima:"
-TRANSLATION_FAILED = "Voy, tarjima chiqmadi. Qayta urinish uchun quyidan tilni tanlang."
+TRANSLATION_FAILED = "🌐 Voy, tarjima chiqmadi. _Qayta urinish uchun quyidan tilni tanlang._"
 TRANSLATION_SAME_LANGUAGE = "Bu allaqachon shu tilda-ku!"
 SUMMARIZING = "🔍 Qisqacha mazmunini tayyorlayapman..."
 SUMMARY_HEADER = "Mana qisqacha mazmuni:"
-SUMMARY_FAILED = "Voy, qisqacha mazmunini tayyorlay olmadim. Qayta urinish uchun quyidagi tugmani bosing."
+SUMMARY_FAILED = "🔍 Voy, qisqacha mazmunini tayyorlay olmadim. _Qayta urinish uchun quyidagi tugmani bosing._"
 
 # See en.py's NEXT_ACTIONS_PROMPT comment for why this is separate from
 # EXPORT_PROMPT below.
@@ -153,37 +153,37 @@ UNSUPPORTED_MESSAGE_PARTS = [
 ]
 
 ERROR_PRIVATE = (
-    "Bu *yopiq (private)* akkaunt yoki video koʻrinyapti — men faqat ochiq "
-    "kontent bilan ishlay olaman. Uni ochiq qilsangiz, havolani qayta yuboring."
+    "🔒 Bu *yopiq (private)* akkaunt yoki video koʻrinyapti — men faqat ochiq "
+    "kontent bilan ishlay olaman. _Uni ochiq qilsangiz, havolani qayta yuboring._"
 )
 ERROR_UNAVAILABLE = (
-    "Bu videoni topa olmadim — balki *oʻchirilgan*, *yopiq* yoki baʼzi "
-    "hududlarda *toʻsilgan* boʻlishi mumkin. Havolani tekshirib, menga "
-    "qayta yuboring."
+    "🚫 Bu videoni topa olmadim — balki *oʻchirilgan*, *yopiq* yoki baʼzi "
+    "hududlarda *toʻsilgan* boʻlishi mumkin. _Havolani tekshirib, menga "
+    "qayta yuboring._"
 )
 ERROR_TIMEOUT = (
-    "Bu *juda uzoq* yuklandi — bu sekin internet yoki katta fayl bilan "
-    "boʻlishi mumkin. Havolani qayta yuboring, men yana urinib koʻraman."
+    "⏱️ Bu *juda uzoq* yuklandi — bu sekin internet yoki katta fayl bilan "
+    "boʻlishi mumkin. _Havolani qayta yuboring, men yana urinib koʻraman._"
 )
-ERROR_NETWORK = "*Tarmoqda muammo* boʻldi shekilli. Havolani qayta yuboring, yana urinib koʻramiz."
-ERROR_TOO_LARGE = "Bu fayl hozir Telegram orqali yuborish uchun *juda katta*, uzr. Qisqaroq video havolasini yuboring."
+ERROR_NETWORK = "📡 *Tarmoqda muammo* boʻldi shekilli. _Havolani qayta yuboring, yana urinib koʻramiz._"
+ERROR_TOO_LARGE = "📦 Bu fayl hozir Telegram orqali yuborish uchun *juda katta*, uzr. _Qisqaroq video havolasini yuboring._"
 ERROR_GENERIC = (
-    "*Mening tomonimda nimadir xato ketdi* va buni qayta ishlay olmadim. "
-    "Havola toʻgʻri va ochiq ekanini tekshirib, menga qayta yuboring."
+    "⚠️ *Mening tomonimda nimadir xato ketdi* va buni qayta ishlay olmadim. "
+    "_Havola toʻgʻri va ochiq ekanini tekshirib, menga qayta yuboring._"
 )
-ERROR_NO_VIDEO = "Bu postda *video* yoʻqday koʻrinadi — men faqat video boʻlgan postlar bilan ishlayman."
-ERROR_NO_AUDIO = "Bu videoda *ovoz* yoʻqday koʻrinadi — men faqat ovozi bor videolar bilan ishlayman."
+ERROR_NO_VIDEO = "🎬 Bu postda *video* yoʻqday koʻrinadi — men faqat video boʻlgan postlar bilan ishlayman."
+ERROR_NO_AUDIO = "🔇 Bu videoda *ovoz* yoʻqday koʻrinadi — men faqat ovozi bor videolar bilan ishlayman."
 ERROR_RATE_LIMITED = (
-    "Hozir menga *juda koʻp soʻrov* kelyapti va chegaraga yetdim — bu sizning "
-    "havolangizga bogʻliq emas. Bir necha daqiqa kutib, qayta yuboring."
+    "⏳ Hozir menga *juda koʻp soʻrov* kelyapti va chegaraga yetdim — bu sizning "
+    "havolangizga bogʻliq emas. _Bir necha daqiqa kutib, qayta yuboring._"
 )
 
-NO_TRANSCRIPT_SAVED = "Bu matn endi mendan yoʻqoldi — havolani qayta yuboring, yangidan boshlaymiz."
+NO_TRANSCRIPT_SAVED = "🗂️ Bu matn endi mendan yoʻqoldi — _havolani qayta yuboring, yangidan boshlaymiz._"
 DAILY_LIMIT_REACHED = (
-    "Bugungi *foydalanish chegarasiga* yetdingiz — bu botdan foydalanadigan "
-    "hammaga adolatli boʻlishi uchun. Ertaga qaytib keling!"
+    "📅 Bugungi *foydalanish chegarasiga* yetdingiz — bu botdan foydalanadigan "
+    "hammaga adolatli boʻlishi uchun. _Ertaga qaytib keling!_"
 )
-STILL_WORKING = "*Hali oldingi soʻrovingiz* ustida ishlayapman — uni tugatishga biroz vaqt bering!"
+STILL_WORKING = "⚙️ *Hali oldingi soʻrovingiz* ustida ishlayapman — uni tugatishga biroz vaqt bering!"
 
 LONG_CONTENT_WARNING = (
     "Bu birozroq *uzunroq* koʻrinadi (~{minutes} daqiqa) — matnga aylantirish "
@@ -211,7 +211,7 @@ HISTORY_EMPTY_PARTS = [
     ("📸", INSTAGRAM), (" Instagram", True),
     (" havolasini yuboring, keyingi safar shu yerda paydo boʻladi.", False),
 ]
-HISTORY_NOT_FOUND = "Buni topa olmadim — balki juda eski yoki oʻchirilgan boʻlishi mumkin. /history buyrugʻini yana sinab koʻring."
+HISTORY_NOT_FOUND = "📜 Buni topa olmadim — balki juda eski yoki oʻchirilgan boʻlishi mumkin. _/history buyrugʻini yana sinab koʻring._"
 
 PLATFORM_LABELS = {
     "youtube": "🎥 YouTube",
