@@ -8,6 +8,7 @@ from telegram.ext import ContextTypes
 
 from utils.link_detector import extract_url, detect_platform
 from utils.text_chunker import split_into_chunks
+from utils.rich_text import CODE, build_bold_message
 from utils import messages as msg
 from services.youtube_service import download_youtube_video
 from services.twitter_service import download_twitter_video
@@ -24,10 +25,14 @@ from database import (
     get_interface_language,
     get_daily_usage_count,
     increment_daily_usage,
+    get_total_usage_today,
+    has_sent_capacity_alert_today,
+    mark_capacity_alert_sent,
 )
 from utils.network_retry import call_with_retry, call_sync_with_retry
 from utils.stickers import STICKER_PROCESSING, STICKER_DONE, STICKER_ERROR
 from handlers.command_handler import help_command, history_command, language_command
+from config import OWNER_USER_ID
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +62,16 @@ LONG_CONTENT_THRESHOLD_SECONDS = 90
 # that from happening; raise this (or drop it entirely) once billing is
 # on a paid tier without daily caps.
 PER_USER_DAILY_LIMIT = 15
+
+# Realistic safe capacity on Groq's shared free tier is ~500 full pipeline
+# runs/day (bottlenecked by gpt-oss-120b's 1,000 RPD / 2 calls per run -
+# see PER_USER_DAILY_LIMIT's comment). 350 (70%) gives the owner real lead
+# time to upgrade to a paid tier before actually hitting the wall, instead
+# of finding out from a wave of ERROR_RATE_LIMITED reports. Checked once
+# per pipeline run in _process_link; see database.py's capacity_alerts
+# table for why this only fires once per day rather than on every request
+# past the threshold.
+GROQ_CAPACITY_WARNING_THRESHOLD = 350
 
 
 def _lang(user_id) -> str:
@@ -93,17 +108,52 @@ def build_long_content_confirm_keyboard(lang):
     return InlineKeyboardMarkup(keyboard)
 
 
-async def send_long_text(message, text: str):
+async def _delete_silently(message):
     """
-    Send text as one or more Telegram messages, splitting at paragraph/
-    sentence boundaries (never mid-sentence) so a long transcript doesn't
-    hit Telegram's per-message character limit.
+    Best-effort cleanup of a now-superseded message (a progress sticker or
+    status line that no longer serves a purpose once the real result is
+    ready) - never lets a delete failure (already deleted, too old, etc.)
+    break the flow it's cleaning up after, so this is a plain try/except
+    rather than routed through call_with_retry (which re-raises after
+    exhausting retries).
     """
 
-    chunks, _ = split_into_chunks(text, max_chars=TELEGRAM_MESSAGE_MAX_CHARS)
+    try:
+        await message.delete()
+    except Exception:
+        logger.warning(f"Failed to delete message {getattr(message, 'message_id', '?')} - leaving it in place")
 
-    for chunk in chunks:
-        await call_with_retry(message.reply_text, chunk)
+
+async def send_copyable_result(message, header_parts, content: str):
+    """
+    Sends a transcript/translation/summary as one or more Telegram
+    messages, splitting at paragraph/sentence boundaries (never
+    mid-sentence) so it doesn't hit Telegram's per-message character
+    limit - and monospaced (MessageEntity.CODE) so a tap copies it in any
+    Telegram client. header_parts (e.g. msg.transcript_header_parts(lang))
+    is prepended to the first chunk only, in ONE message together with
+    that chunk, rather than as its own separate message.
+
+    Entity-based, not parse_mode="Markdown", for the same reason as
+    elsewhere in this file: content is genuinely unpredictable (raw
+    transcript/AI output) and could contain characters a Markdown parser
+    would treat as syntax - entities apply formatting by position, so
+    nothing in content can affect the header's formatting or break the
+    message.
+    """
+
+    chunks, _ = split_into_chunks(content, max_chars=TELEGRAM_MESSAGE_MAX_CHARS)
+    if not chunks:
+        chunks = [""]
+
+    first_text, first_entities = build_bold_message(
+        list(header_parts) + [("\n\n", False), (chunks[0], CODE)]
+    )
+    await call_with_retry(message.reply_text, first_text, entities=first_entities)
+
+    for chunk in chunks[1:]:
+        chunk_text, chunk_entities = build_bold_message([(chunk, CODE)])
+        await call_with_retry(message.reply_text, chunk_text, entities=chunk_entities)
 
 
 def build_export_keyboard(lang):
@@ -202,6 +252,42 @@ def _mark_busy(context):
 
 def _mark_free(context):
     context.user_data["busy"] = False
+
+
+async def _maybe_alert_owner_of_capacity(context):
+    """
+    Best-effort, once-a-day DM to OWNER_USER_ID (config.py) when total
+    usage across every user crosses GROQ_CAPACITY_WARNING_THRESHOLD - see
+    that constant's comment. No-ops silently if OWNER_USER_ID isn't
+    configured, so this feature is entirely opt-in. Checked on every
+    pipeline run (cheap - two indexed lookups), but only ever sends once
+    per calendar day regardless of how far over the threshold usage goes,
+    and never raises - a failed notification should never break the
+    transcription request that triggered the check.
+    """
+
+    if not OWNER_USER_ID:
+        return
+
+    try:
+        if has_sent_capacity_alert_today():
+            return
+
+        total_today = get_total_usage_today()
+        if total_today < GROQ_CAPACITY_WARNING_THRESHOLD:
+            return
+
+        mark_capacity_alert_sent()
+        await context.bot.send_message(
+            chat_id=OWNER_USER_ID,
+            text=(
+                f"📈 ScriptlyAI has processed {total_today} requests today, past the "
+                f"{GROQ_CAPACITY_WARNING_THRESHOLD}/day watch threshold - Groq's free tier caps out "
+                "around ~500/day shared across all users. Might be time to consider a paid tier."
+            ),
+        )
+    except Exception:
+        logger.exception("Failed to send owner capacity alert - continuing")
 
 
 # Persistent-reply-keyboard shortcut labels ("❓ Help" etc.) aren't real
@@ -350,6 +436,7 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
         return
 
     increment_daily_usage(user_id)
+    await _maybe_alert_owner_of_capacity(context)
 
     _mark_busy(context)
 
@@ -361,7 +448,9 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
     video_path = None
     audio_path = None
 
-    await call_with_retry(message.reply_sticker, STICKER_PROCESSING)
+    # Captured (not discarded) so it can be deleted once STICKER_DONE takes
+    # over its role - see the success path below for why.
+    processing_sticker_message = await call_with_retry(message.reply_sticker, STICKER_PROCESSING)
 
     # One status message, edited in place through each processing step,
     # instead of sending a new message per step - keeps the chat from
@@ -515,14 +604,22 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
         )
 
         await call_with_retry(message.reply_sticker, STICKER_DONE)
-        await call_with_retry(message.reply_text, msg.t(lang, "TRANSCRIPT_HEADER"), parse_mode="Markdown")
-        await send_long_text(message, cleaned_transcript)
+        await send_copyable_result(message, msg.transcript_header_parts(lang), cleaned_transcript)
 
         await call_with_retry(
             message.reply_text,
             msg.t(lang, "NEXT_ACTIONS_PROMPT"),
             reply_markup=build_export_keyboard(lang)
         )
+
+        # The processing sticker and the "cleaning up..." status line have
+        # both been superseded by the result just sent - delete them now
+        # that everything landed, so the chat isn't left with stale
+        # progress indicators. Deleted only at the very end (not earlier)
+        # so the except block below still has a live status_message to
+        # edit into an error if anything above it fails instead.
+        await _delete_silently(processing_sticker_message)
+        await _delete_silently(status_message)
 
     except Exception as error:
         error_name = type(error).__name__
@@ -738,11 +835,13 @@ async def _handle_translate_to(query, context, lang, target_code):
 
     try:
         translated = await asyncio.to_thread(translate_text, transcript, target_code, detected_language)
-        await call_with_retry(status_message.edit_text, msg.t(lang, "TRANSLATION_HEADER"), parse_mode="Markdown")
-        # translated is machine-translated transcript content - genuinely
-        # unpredictable, so no parse_mode, same reasoning as the transcript
-        # itself throughout this file.
-        await send_long_text(query.message, translated)
+        await send_copyable_result(query.message, msg.translation_header_parts(lang), translated)
+        # "Translating..." has been superseded by the result just sent -
+        # delete it now that it's actually landed, rather than leaving it
+        # as a stale status line. Deleted only AFTER a successful send (not
+        # before) so the except block below still has a live message to
+        # edit into TRANSLATION_FAILED if send_copyable_result itself fails.
+        await _delete_silently(status_message)
 
         # Now the translation (not the original) is what's on screen, so
         # that's what "save this" should export - see build_save_keyboard's
@@ -780,10 +879,13 @@ async def _handle_summarize(query, context, lang):
 
     try:
         summary = await asyncio.to_thread(summarize_transcript, transcript)
-        await call_with_retry(status_message.edit_text, msg.t(lang, "SUMMARY_HEADER"), parse_mode="Markdown")
-        # summary is AI-generated from transcript content - genuinely
-        # unpredictable, so no parse_mode, same reasoning as elsewhere.
-        await call_with_retry(query.message.reply_text, summary)
+        await send_copyable_result(query.message, msg.summary_header_parts(lang), summary)
+        # "Summarizing..." has been superseded by the result just sent -
+        # delete it now that it's actually landed (only after a successful
+        # send, not before - see _handle_translate_to's identical comment
+        # for why the except block below needs status_message to still
+        # exist if send_copyable_result itself fails).
+        await _delete_silently(status_message)
 
         # Now the summary (not the full transcript) is what's on screen -
         # see build_save_keyboard's comment. Language stays the original
@@ -835,8 +937,7 @@ async def _handle_history_select(query, context, lang, transcript_id_raw):
         query.message.reply_text, msg.history_selected_info(lang, title, platform, detected_language, short_date)
     )
 
-    await call_with_retry(query.message.reply_text, msg.t(lang, "TRANSCRIPT_HEADER"), parse_mode="Markdown")
-    await send_long_text(query.message, transcript_text)
+    await send_copyable_result(query.message, msg.transcript_header_parts(lang), transcript_text)
 
     await call_with_retry(
         query.message.reply_text,

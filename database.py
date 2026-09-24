@@ -72,6 +72,17 @@ def init_database():
         )
     """)
 
+    # One row per day, written once - marks that the owner has already
+    # been sent today's "approaching Groq capacity" DM (see
+    # GROQ_CAPACITY_WARNING_THRESHOLD in handlers/link_handler.py), so
+    # that check doesn't re-fire on every request once the threshold is
+    # crossed.
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS capacity_alerts (
+            alert_date TEXT PRIMARY KEY
+        )
+    """)
+
     connection.commit()
     connection.close()
 
@@ -220,6 +231,46 @@ def increment_daily_usage(user_id):
         ON CONFLICT(user_id, usage_date) DO UPDATE SET
             request_count = request_count + 1
     """, (user_id,))
+
+    connection.commit()
+    connection.close()
+
+
+def get_total_usage_today():
+    """Sum of every user's pipeline runs today (UTC) - the number that
+    actually matters against Groq's shared free-tier daily cap, unlike
+    get_daily_usage_count() which is scoped to one user."""
+
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    cursor.execute("""
+        SELECT COALESCE(SUM(request_count), 0) FROM daily_usage
+        WHERE usage_date = date('now')
+    """)
+
+    total = cursor.fetchone()[0]
+    connection.close()
+
+    return total
+
+
+def has_sent_capacity_alert_today():
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    cursor.execute("SELECT 1 FROM capacity_alerts WHERE alert_date = date('now')")
+    row = cursor.fetchone()
+    connection.close()
+
+    return row is not None
+
+
+def mark_capacity_alert_sent():
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    cursor.execute("INSERT OR IGNORE INTO capacity_alerts (alert_date) VALUES (date('now'))")
 
     connection.commit()
     connection.close()
