@@ -2,8 +2,9 @@
 # (scriptlyai_animated_by_ScriptlyAI_bot), WEBM/VP9 video stickers built
 # from assets/stickers/*_nobg.png - each animated per-sticker (welcome:
 # grow + brightness shimmer, processing: traveling ripple across the
-# equalizer bars, done: shine sweeps across a checkmark then holds,
-# looping seamlessly, error: a shake) and uploaded via
+# equalizer bars, done: shine sweeps across a checkmark then holds, error:
+# an X mark settles into a quick shake then holds - both done/error loop
+# seamlessly, first frame == last frame) and uploaded via
 # bot.create_new_sticker_set(). Supersedes an earlier static-PNG set
 # (scriptlyai_pack_by_ScriptlyAI_bot), left in place on Telegram's side
 # rather than deleted since nothing references it anymore.
@@ -19,4 +20,4 @@
 STICKER_WELCOME = "CAACAgIAAxkDAAIDkGq02YMfPVKUmXpoKy9ec0Gmg2M5AAIMsgACNHOQSU4yM2CHpzlNPQQ"
 STICKER_PROCESSING = "CAACAgIAAxUAAWq1WWDR4b4wZzfMc1YKeR8tfknzAAIrswACO3OgSYU83OGnGim0PQQ"
 STICKER_DONE = "CAACAgIAAxUAAWq1WWAeIv3leOODQM4KazDitPQpAAKQowACnjOpSahNqnjV33pAPQQ"
-STICKER_ERROR = "CAACAgIAAxUAAWq1WWB4FYnAMbJwjxCDCoKWVCfQAAK0pwACJvmQSVkfh21UhsliPQQ"
+STICKER_ERROR = "CAACAgIAAxUAAWq1XDFm8_lMEOkUXXsmIpd5pEhSAAKlrAACBwepSf13exsD5LABPQQ"
