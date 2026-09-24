@@ -25,8 +25,12 @@ MODEL_NAME = "whisper-large-v3"
 
 # Every real Uzbek misdetection observed across this whole investigation
 # (Groq, AssemblyAI, local Whisper - 8+ data points) has landed on one of
-# these languages, never anything outside this cluster. Used below to
-# trigger a local Uzbek-specific fallback ONLY when Groq's own result
+# these languages, never anything outside this cluster. Also, separately
+# confirmed 2026-09-24: genuinely Kazakh AND genuinely Kyrgyz audio both
+# get detected by Groq as "kk" too - Kyrgyz isn't even in Whisper's
+# canonical language list, so "ky" here never actually fires; it's kept
+# for documentation of the theoretical case. Used below to trigger the
+# local Central-Asian-specialist fallbacks ONLY when Groq's own result
 # already lands here - unlike the earlier reverted fix (which forced Uzbek
 # for every Uzbek-interface user regardless of what the audio actually was,
 # and broke on real non-Uzbek content), this is driven by evidence in the
@@ -61,6 +65,51 @@ def _get_uzbek_model():
         from faster_whisper import WhisperModel
         _uzbek_model = WhisperModel(UZBEK_MODEL_DIR, device="cpu", compute_type="int8")
     return _uzbek_model
+
+
+# akuzdeuov/whisper-base.kk (Whisper base fine-tuned on Kazakh) - chosen
+# over shyngys879/kazakh-whisper-large-v3-turbo despite the turbo model's
+# better training stats, because real testing showed the turbo model
+# truncating output and misdetecting language on real audio while this
+# smaller base model produced correct, coherent Kazakh consistently (see
+# [[keep_digging_past_apparent_fix]] discipline - benchmark numbers alone
+# were misleading here). Converted the same way as the Uzbek model:
+#   ct2-transformers-converter --model akuzdeuov/whisper-base.kk \
+#     --output_dir models/kazakh_asr \
+#     --copy_files tokenizer_config.json preprocessor_config.json \
+#     --quantization float16
+KAZAKH_MODEL_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "models", "kazakh_asr")
+
+# kyrgyz-ai/AkylAI-STT-small (Whisper small fine-tuned on Kyrgyz). Kyrgyz
+# has no code in Whisper's canonical ~99-language list, so this model (and
+# Whisper generally) can only be driven via language=None auto-detect,
+# where it internally reuses Kazakh's "kk" language-embedding slot - the
+# fine-tuning changed the model's output vocabulary even though it didn't
+# get its own language token. Converted the same way:
+#   ct2-transformers-converter --model kyrgyz-ai/AkylAI-STT-small \
+#     --output_dir models/kyrgyz_asr \
+#     --copy_files tokenizer_config.json preprocessor_config.json \
+#     --quantization float16
+KYRGYZ_MODEL_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "models", "kyrgyz_asr")
+
+_kazakh_model = None
+_kyrgyz_model = None
+
+
+def _get_kazakh_model():
+    global _kazakh_model
+    if _kazakh_model is None:
+        from faster_whisper import WhisperModel
+        _kazakh_model = WhisperModel(KAZAKH_MODEL_DIR, device="cpu", compute_type="int8")
+    return _kazakh_model
+
+
+def _get_kyrgyz_model():
+    global _kyrgyz_model
+    if _kyrgyz_model is None:
+        from faster_whisper import WhisperModel
+        _kyrgyz_model = WhisperModel(KYRGYZ_MODEL_DIR, device="cpu", compute_type="int8")
+    return _kyrgyz_model
 
 
 # Below this (forced language="uz" decode), the transcript is discarded as
@@ -125,6 +174,96 @@ def _try_uzbek_fallback(audio_path: str):
         logger.exception("Uzbek fallback transcription failed - keeping Groq's result")
         return None
 
+
+# Real measurements (2026-09-24): genuine Kyrgyz audio, decoded with this
+# model via auto-detect (language=None - see KYRGYZ_MODEL_DIR's comment),
+# scored -0.134; the same genuine-Kazakh and genuine-Uzbek clips used to
+# calibrate the other two fallbacks scored -0.303 and -0.282 through THIS
+# model. -0.2 sits in that gap. Unlike the Kazakh threshold below, this
+# one separates cleanly - closely related as Kazakh and Kyrgyz are, this
+# model's own confidence still tells them apart.
+KYRGYZ_FALLBACK_MIN_AVG_LOGPROB = -0.2
+
+
+def _try_kyrgyz_fallback(audio_path: str):
+    """
+    Runs the local Kyrgyz-specific model via auto-detect (forcing a
+    language isn't possible - see KYRGYZ_MODEL_DIR's comment) and returns
+    its transcript if confidence clears KYRGYZ_FALLBACK_MIN_AVG_LOGPROB.
+    Same reasoning as _try_uzbek_fallback: returns None (keep Groq's
+    result) on any failure or low confidence.
+    """
+
+    try:
+        model = _get_kyrgyz_model()
+        segments, info = model.transcribe(audio_path, language=None)
+        segments = list(segments)
+
+        if not segments:
+            return None
+
+        avg_logprob = sum(segment.avg_logprob for segment in segments) / len(segments)
+        if avg_logprob < KYRGYZ_FALLBACK_MIN_AVG_LOGPROB:
+            logger.info(
+                f"Kyrgyz fallback decode confidence too low (avg_logprob={avg_logprob:.3f}, "
+                f"detected={info.language}) - discarding, keeping Groq's original result"
+            )
+            return None
+
+        text = " ".join(segment.text.strip() for segment in segments).strip()
+        return text or None
+    except Exception:
+        logger.exception("Kyrgyz fallback transcription failed - keeping Groq's result")
+        return None
+
+
+# Real measurements (2026-09-24): genuine Kazakh audio, forced language="kk"
+# through this model, scored -0.056; a genuine Uzbek clip scored -0.170
+# through it (clear gap). BUT a genuine Kyrgyz clip scored -0.072 through
+# it - nearly indistinguishable from the true-Kazakh score, because Kazakh
+# and Kyrgyz are close enough that forcing "kk" on Kyrgyz speech still
+# decodes fluently (just wrong). This threshold can NOT reliably tell
+# real Kazakh from real Kyrgyz on its own - see transcribe_audio(), which
+# only reaches this fallback after _try_kyrgyz_fallback has already had
+# first chance to claim the audio (Kyrgyz's own gate above separates
+# cleanly), substantially - but not perfectly - reducing that risk rather
+# than eliminating it.
+KAZAKH_FALLBACK_MIN_AVG_LOGPROB = -0.12
+
+
+def _try_kazakh_fallback(audio_path: str):
+    """
+    Runs the local Kazakh-specific model (forced language="kk") and
+    returns its transcript if confidence clears
+    KAZAKH_FALLBACK_MIN_AVG_LOGPROB. See that constant's comment for the
+    known Kazakh/Kyrgyz confusability this can't fully rule out on its
+    own - call this AFTER _try_kyrgyz_fallback has already had a chance,
+    not standalone. Same reasoning otherwise as _try_uzbek_fallback:
+    returns None (keep Groq's result) on any failure or low confidence.
+    """
+
+    try:
+        model = _get_kazakh_model()
+        segments, _info = model.transcribe(audio_path, language="kk")
+        segments = list(segments)
+
+        if not segments:
+            return None
+
+        avg_logprob = sum(segment.avg_logprob for segment in segments) / len(segments)
+        if avg_logprob < KAZAKH_FALLBACK_MIN_AVG_LOGPROB:
+            logger.info(
+                f"Kazakh fallback decode confidence too low (avg_logprob={avg_logprob:.3f}) - "
+                "discarding, keeping Groq's original result"
+            )
+            return None
+
+        text = " ".join(segment.text.strip() for segment in segments).strip()
+        return text or None
+    except Exception:
+        logger.exception("Kazakh fallback transcription failed - keeping Groq's result")
+        return None
+
 # Groq's API returns the detected language as a full English name (e.g.
 # "English", "Arabic") - local faster-whisper returned a two-letter ISO
 # 639-1 code (e.g. "en", "ar"), which the rest of the codebase (export's
@@ -187,6 +326,21 @@ def _transcribe(audio_path: str, language: str = None):
     return result.get("text", "").strip(), _normalize_language_code(result.get("language"))
 
 
+# Tried in this order when Groq's detection lands in the cluster - Kyrgyz
+# first because its own confidence gate is the only one of the three that
+# reliably separates true-positive from false-positive (see
+# KYRGYZ_FALLBACK_MIN_AVG_LOGPROB's comment); trying it first means
+# genuinely Kyrgyz audio gets claimed before ever reaching the Kazakh
+# fallback, whose own gate can't fully tell real Kazakh from real Kyrgyz
+# apart. First candidate whose confidence clears its own threshold wins;
+# if none do, Groq's original result stands.
+_FALLBACK_CANDIDATES = (
+    ("ky", _try_kyrgyz_fallback),
+    ("kk", _try_kazakh_fallback),
+    ("uz", _try_uzbek_fallback),
+)
+
+
 def transcribe_audio(audio_path: str, language: str = None, on_uzbek_fallback_start=None):
     """
     Convert an audio file into text using Groq's hosted Whisper API.
@@ -195,25 +349,30 @@ def transcribe_audio(audio_path: str, language: str = None, on_uzbek_fallback_st
     automatically detects the language.
 
     When auto-detection lands on a language in UZBEK_MISDETECTION_CLUSTER,
-    a local Uzbek-specific model re-transcribes the same audio - see that
-    constant's comment for why this is safe to do unconditionally (it's
-    triggered by the audio's own detected language, not by any stated user
-    preference). If the fallback fails for any reason, Groq's original
-    result is kept rather than surfacing an error - this is a quality
-    improvement, not a required step.
+    the local Kyrgyz/Kazakh/Uzbek specialist models each get a turn (see
+    _FALLBACK_CANDIDATES) re-transcribing the same audio - see
+    UZBEK_MISDETECTION_CLUSTER's comment for why this is safe to do
+    unconditionally (it's triggered by the audio's own detected language,
+    not by any stated user preference). If every fallback fails or comes
+    back low-confidence, Groq's original result is kept rather than
+    surfacing an error - this is a quality improvement, not a required
+    step.
 
     on_uzbek_fallback_start, if given, is called (no arguments) right
-    before the local model starts - the caller's chance to update a status
-    message, since this step is real CPU work (35s-2min+ depending on
-    clip length) with no progress of its own to report in between. Any
-    exception it raises is swallowed - a failed status update should never
-    break the actual transcription it's trying to describe.
+    before the first local model starts - the caller's chance to update a
+    status message, since this step is real CPU work (35s-2min+ per
+    candidate tried) with no progress of its own to report in between.
+    Any exception it raises is swallowed - a failed status update should
+    never break the actual transcription it's trying to describe. Kept
+    this name (not renamed to something cluster-generic) since the
+    message it triggers already reads correctly for any of the three
+    candidates - see locales' TRANSCRIBING_UZBEK_FALLBACK.
     """
 
     text, detected_language = call_sync_with_retry(_transcribe, audio_path, language=language)
 
     if language is None and detected_language in UZBEK_MISDETECTION_CLUSTER:
-        logger.info(f"Groq detected '{detected_language}' (in Uzbek misdetection cluster) - trying local Uzbek fallback")
+        logger.info(f"Groq detected '{detected_language}' (in Uzbek misdetection cluster) - trying local fallbacks")
 
         if on_uzbek_fallback_start:
             try:
@@ -221,8 +380,9 @@ def transcribe_audio(audio_path: str, language: str = None, on_uzbek_fallback_st
             except Exception:
                 logger.exception("on_uzbek_fallback_start callback failed - continuing with transcription")
 
-        fallback_text = _try_uzbek_fallback(audio_path)
-        if fallback_text:
-            return fallback_text, "uz"
+        for candidate_language, try_fallback in _FALLBACK_CANDIDATES:
+            fallback_text = try_fallback(audio_path)
+            if fallback_text:
+                return fallback_text, candidate_language
 
     return text, detected_language
