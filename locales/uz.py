@@ -108,7 +108,9 @@ CLEANING = [
     "✨ Matnga oxirgi tafsilotlarni qoʻshyapman...",
 ]
 
-TRANSCRIPT_HEADER = "Mana *toza va tayyor* toʻliq matn:"
+TRANSCRIPT_HEADER_PARTS = [
+    ("Mana ", False), ("toza va tayyor", True), (" toʻliq matn:", False),
+]
 AUDIO_CAPTION = "Mana men ajratib olgan audio 🎧"
 
 EXPORT_PDF_BUTTON = "📄 PDF"
@@ -120,11 +122,11 @@ TRANSLATE_BUTTON = "🌐 Tarjima qilish"
 SUMMARIZE_BUTTON = "🔍 Qisqartirish"
 TRANSLATE_PICKER_PROMPT = "Qaysi tilga tarjima qilay?"
 TRANSLATING = "🌐 Tarjima qilyapman..."
-TRANSLATION_HEADER = "Mana tarjima:"
+TRANSLATION_HEADER_PARTS = [("Mana tarjima:", False)]
 TRANSLATION_FAILED = "🌐 Voy, tarjima chiqmadi. _Qayta urinish uchun quyidan tilni tanlang._"
 TRANSLATION_SAME_LANGUAGE = "Bu allaqachon shu tilda-ku!"
 SUMMARIZING = "🔍 Qisqacha mazmunini tayyorlayapman..."
-SUMMARY_HEADER = "Mana qisqacha mazmuni:"
+SUMMARY_HEADER_PARTS = [("Mana qisqacha mazmuni:", False)]
 SUMMARY_FAILED = "🔍 Voy, qisqacha mazmunini tayyorlay olmadim. _Qayta urinish uchun quyidagi tugmani bosing._"
 
 # See en.py's NEXT_ACTIONS_PROMPT comment for why this is separate from

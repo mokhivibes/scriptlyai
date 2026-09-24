@@ -108,7 +108,9 @@ CLEANING = [
     "✨ Навожу лоск на текст...",
 ]
 
-TRANSCRIPT_HEADER = "Вот полная расшифровка, *уже причёсанная*:"
+TRANSCRIPT_HEADER_PARTS = [
+    ("Вот полная расшифровка, ", False), ("уже причёсанная", True), (":", False),
+]
 AUDIO_CAPTION = "Вот аудио, которое я достал 🎧"
 
 EXPORT_PDF_BUTTON = "📄 PDF"
@@ -120,11 +122,11 @@ TRANSLATE_BUTTON = "🌐 Перевести"
 SUMMARIZE_BUTTON = "🔍 Обобщить"
 TRANSLATE_PICKER_PROMPT = "На какой язык перевести?"
 TRANSLATING = "🌐 Перевожу..."
-TRANSLATION_HEADER = "Вот перевод:"
+TRANSLATION_HEADER_PARTS = [("Вот перевод:", False)]
 TRANSLATION_FAILED = "🌐 Хм, перевод не получился. _Выбери язык ниже, чтобы попробовать снова._"
 TRANSLATION_SAME_LANGUAGE = "Так это же уже на этом языке!"
 SUMMARIZING = "🔍 Делаю краткое содержание..."
-SUMMARY_HEADER = "Вот краткое содержание:"
+SUMMARY_HEADER_PARTS = [("Вот краткое содержание:", False)]
 SUMMARY_FAILED = "🔍 Хм, не получилось собрать краткое содержание. _Нажми на кнопку ниже, чтобы попробовать снова._"
 
 # See en.py's NEXT_ACTIONS_PROMPT comment for why this is separate from

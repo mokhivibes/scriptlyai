@@ -4,6 +4,14 @@ from telegram import MessageEntity
 # first name) gets inserted into a *_PARTS list - see build_bold_message.
 DYNAMIC = object()
 
+# Style sentinel for build_bold_message: wraps a segment in a CODE entity
+# (monospace, tap-to-copy in every Telegram client) instead of bold. Used
+# for transcript/translation/summary text - genuinely unpredictable
+# content that can't safely go through parse_mode="Markdown" (see
+# build_bold_message's docstring), but still benefits from being
+# monospaced so a tap copies it.
+CODE = object()
+
 
 def build_bold_message(parts):
     """
@@ -18,6 +26,7 @@ def build_bold_message(parts):
     `style` is one of:
       - False - plain text
       - True - wrapped in a bold entity
+      - CODE (this module's sentinel) - wrapped in a monospace/code entity
       - a string - treated as a custom_emoji_id; `segment` should be a
         single placeholder emoji character (e.g. a plain Unicode emoji),
         which Telegram replaces with that custom emoji's artwork for
@@ -46,6 +55,8 @@ def build_bold_message(parts):
         length = len(segment.encode("utf-16-le")) // 2
         if style is True:
             entities.append(MessageEntity(type=MessageEntity.BOLD, offset=offset, length=length))
+        elif style is CODE:
+            entities.append(MessageEntity(type=MessageEntity.CODE, offset=offset, length=length))
         elif isinstance(style, str):
             entities.append(MessageEntity(
                 type=MessageEntity.CUSTOM_EMOJI, offset=offset, length=length, custom_emoji_id=style

@@ -129,7 +129,15 @@ CLEANING = [
 ]
 
 # --- Delivery messages ---
-TRANSCRIPT_HEADER = "Here's the full transcript, *cleaned up and ready*:"
+# *_HEADER_PARTS (not a parse_mode="Markdown" string) since these now get
+# combined with the transcript/translation/summary itself - genuinely
+# unpredictable content - into ONE message via entities (see
+# handlers/link_handler.py's send_copyable_result). Mixing a
+# parse_mode="Markdown" header with appended unsafe content in the same
+# message isn't possible; entities are the only safe way to do both.
+TRANSCRIPT_HEADER_PARTS = [
+    ("Here's the full transcript, ", False), ("cleaned up and ready", True), (":", False),
+]
 AUDIO_CAPTION = "Here's the audio I pulled out 🎧"
 
 # --- Export options ---
@@ -143,11 +151,11 @@ TRANSLATE_BUTTON = "🌐 Translate"
 SUMMARIZE_BUTTON = "🔍 Summarize"
 TRANSLATE_PICKER_PROMPT = "Which language should I translate it into?"
 TRANSLATING = "🌐 Translating..."
-TRANSLATION_HEADER = "Here's the translation:"
+TRANSLATION_HEADER_PARTS = [("Here's the translation:", False)]
 TRANSLATION_FAILED = "🌐 Hmm, that translation didn't go through. _Pick a language below to try again._"
 TRANSLATION_SAME_LANGUAGE = "That's already the language this is in!"
 SUMMARIZING = "🔍 Summarizing..."
-SUMMARY_HEADER = "Here's a quick summary:"
+SUMMARY_HEADER_PARTS = [("Here's a quick summary:", False)]
 SUMMARY_FAILED = "🔍 Hmm, I couldn't put a summary together. _Tap the button below to try again._"
 
 # Shown with the full 4-button menu (export/translate/summarize) right

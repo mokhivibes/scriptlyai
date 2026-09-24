@@ -198,6 +198,23 @@ def cleaning_message(lang) -> str:
     return random.choice(_locale(lang).CLEANING)
 
 
+def transcript_header_parts(lang):
+    """Raw parts (not yet built into text+entities) - the caller appends
+    the transcript itself as a CODE-styled part before calling
+    build_bold_message, so header and content land in ONE message."""
+    return _locale(lang).TRANSCRIPT_HEADER_PARTS
+
+
+def translation_header_parts(lang):
+    """See transcript_header_parts() above."""
+    return _locale(lang).TRANSLATION_HEADER_PARTS
+
+
+def summary_header_parts(lang):
+    """See transcript_header_parts() above."""
+    return _locale(lang).SUMMARY_HEADER_PARTS
+
+
 def target_language_name(lang, target_code: str) -> str:
     locale = _locale(lang)
     return locale.TARGET_LANGUAGE_NAMES.get(target_code, locale.UNKNOWN_LANGUAGE)

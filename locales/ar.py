@@ -109,7 +109,9 @@ CLEANING = [
     "✨ ألمسة أخيرة على النص...",
 ]
 
-TRANSCRIPT_HEADER = "إليك النص الكامل، *منظّماً وجاهزاً*:"
+TRANSCRIPT_HEADER_PARTS = [
+    ("إليك النص الكامل، ", False), ("منظّماً وجاهزاً", True), (":", False),
+]
 AUDIO_CAPTION = "إليك الصوت الذي استخرجته 🎧"
 
 EXPORT_PDF_BUTTON = "📄 PDF"
@@ -121,11 +123,11 @@ TRANSLATE_BUTTON = "🌐 ترجم"
 SUMMARIZE_BUTTON = "🔍 لخّص"
 TRANSLATE_PICKER_PROMPT = "إلى أي لغة أترجمه؟"
 TRANSLATING = "🌐 أترجم الآن..."
-TRANSLATION_HEADER = "إليك الترجمة:"
+TRANSLATION_HEADER_PARTS = [("إليك الترجمة:", False)]
 TRANSLATION_FAILED = "🌐 للأسف لم تنجح الترجمة. _اختر لغة أدناه لتجربة ذلك مرة أخرى._"
 TRANSLATION_SAME_LANGUAGE = "هذا أصلاً بهذه اللغة!"
 SUMMARIZING = "🔍 ألخّص الآن..."
-SUMMARY_HEADER = "إليك ملخصاً سريعاً:"
+SUMMARY_HEADER_PARTS = [("إليك ملخصاً سريعاً:", False)]
 SUMMARY_FAILED = "🔍 للأسف لم أتمكن من تجهيز الملخص. _اضغط الزر أدناه لتجربة ذلك مرة أخرى._"
 
 # See en.py's NEXT_ACTIONS_PROMPT comment for why this is separate from
