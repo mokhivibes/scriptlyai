@@ -117,9 +117,9 @@ TRANSCRIBING = [
 # can take over a minute on a full song, so this explains the extra wait
 # instead of leaving "Transcribing..." on screen with no sign of progress.
 TRANSCRIBING_UZBEK_FALLBACK = (
-    "🇺🇿 This sounds like Uzbek - switching to our *specialized model* for "
-    "better accuracy. This can take a minute or two on longer clips, "
-    "thanks for your patience!"
+    "🇺🇿 This might be Uzbek (or a closely related language) - "
+    "double-checking with our *specialized model* for accuracy. This can "
+    "take a minute or two on longer clips, thanks for your patience!"
 )
 
 CLEANING = [

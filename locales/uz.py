@@ -97,9 +97,9 @@ TRANSCRIBING = [
 ]
 
 TRANSCRIBING_UZBEK_FALLBACK = (
-    "🇺🇿 Bu oʻzbekcha koʻrinyapti — aniqroq natija uchun *maxsus modelga* "
-    "oʻtyapman. Uzunroq videolarda bu bir-ikki daqiqa vaqt olishi mumkin, "
-    "sabringiz uchun rahmat!"
+    "🇺🇿 Bu oʻzbekcha yoki unga yaqin til boʻlishi mumkin — aniqlik uchun "
+    "*maxsus model* bilan tekshiryapman. Uzunroq videolarda bu bir-ikki "
+    "daqiqa vaqt olishi mumkin, sabringiz uchun rahmat!"
 )
 
 CLEANING = [
