@@ -123,6 +123,19 @@ def _get_kyrgyz_model():
 # before this rejects it.
 UZBEK_FALLBACK_MIN_AVG_LOGPROB = -0.15
 
+# Shared by all three fallbacks below. Discovered 2026-09-24 testing the
+# Kyrgyz fallback: avg_logprob alone is blind to a degenerate decode where
+# the model gets stuck repeating one syllable ("Э-э-э-э-э-э-э...") - that
+# failure mode scored avg_logprob=-0.014, the single BEST (least negative)
+# score across 10 real repeated runs on the same audio, because each
+# repeated token is individually "confident" even though the output as a
+# whole is garbage. Real good decodes measured compression_ratio 1.7-1.8;
+# the repetition-loop failures measured 19.7 - an enormous, unambiguous
+# gap. 2.4 matches OpenAI Whisper's own long-established default
+# compression_ratio_threshold for exactly this heuristic, and real testing
+# here confirms it's nowhere near either cluster.
+FALLBACK_MAX_COMPRESSION_RATIO = 2.4
+
 
 def _try_uzbek_fallback(audio_path: str):
     """
@@ -168,6 +181,14 @@ def _try_uzbek_fallback(audio_path: str):
             )
             return None
 
+        avg_compression_ratio = sum(segment.compression_ratio for segment in segments) / len(segments)
+        if avg_compression_ratio > FALLBACK_MAX_COMPRESSION_RATIO:
+            logger.info(
+                f"Uzbek fallback decode looks degenerate/repetitive (compression_ratio="
+                f"{avg_compression_ratio:.3f}) - discarding, keeping Groq's original result"
+            )
+            return None
+
         text = " ".join(segment.text.strip() for segment in segments).strip()
         return text or None
     except Exception:
@@ -189,9 +210,12 @@ def _try_kyrgyz_fallback(audio_path: str):
     """
     Runs the local Kyrgyz-specific model via auto-detect (forcing a
     language isn't possible - see KYRGYZ_MODEL_DIR's comment) and returns
-    its transcript if confidence clears KYRGYZ_FALLBACK_MIN_AVG_LOGPROB.
-    Same reasoning as _try_uzbek_fallback: returns None (keep Groq's
-    result) on any failure or low confidence.
+    its transcript if confidence clears KYRGYZ_FALLBACK_MIN_AVG_LOGPROB
+    AND it isn't a degenerate repetition loop (FALLBACK_MAX_COMPRESSION_
+    RATIO - this is the model where that failure mode was actually caught,
+    see that constant's comment). Same reasoning as _try_uzbek_fallback
+    otherwise: returns None (keep Groq's result) on any failure or low
+    confidence.
     """
 
     try:
@@ -207,6 +231,14 @@ def _try_kyrgyz_fallback(audio_path: str):
             logger.info(
                 f"Kyrgyz fallback decode confidence too low (avg_logprob={avg_logprob:.3f}, "
                 f"detected={info.language}) - discarding, keeping Groq's original result"
+            )
+            return None
+
+        avg_compression_ratio = sum(segment.compression_ratio for segment in segments) / len(segments)
+        if avg_compression_ratio > FALLBACK_MAX_COMPRESSION_RATIO:
+            logger.info(
+                f"Kyrgyz fallback decode looks degenerate/repetitive (compression_ratio="
+                f"{avg_compression_ratio:.3f}) - discarding, keeping Groq's original result"
             )
             return None
 
@@ -255,6 +287,14 @@ def _try_kazakh_fallback(audio_path: str):
             logger.info(
                 f"Kazakh fallback decode confidence too low (avg_logprob={avg_logprob:.3f}) - "
                 "discarding, keeping Groq's original result"
+            )
+            return None
+
+        avg_compression_ratio = sum(segment.compression_ratio for segment in segments) / len(segments)
+        if avg_compression_ratio > FALLBACK_MAX_COMPRESSION_RATIO:
+            logger.info(
+                f"Kazakh fallback decode looks degenerate/repetitive (compression_ratio="
+                f"{avg_compression_ratio:.3f}) - discarding, keeping Groq's original result"
             )
             return None
 
