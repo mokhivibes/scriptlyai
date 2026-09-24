@@ -32,6 +32,20 @@ def _is_permanent_failure(error: Exception) -> bool:
     return any(marker in str(error).lower() for marker in PERMANENT_FAILURE_MARKERS)
 
 
+# Groq (transcription/cleanup/summary) returns HTTP 429 when its rate
+# limit is hit - requests.Response.raise_for_status() turns that into an
+# HTTPError whose message includes "429". Unlike a transient network
+# blip, this will NOT clear within a few seconds of backoff: Groq's
+# per-minute window is 60s and its daily cap doesn't reset until the next
+# day, so the 3-attempt/~7s retry loop below only wastes time before
+# failing anyway. Treated like a permanent failure (no retry, fail fast)
+# so the user gets an honest "I'm at capacity" message immediately
+# instead of waiting ~7s to be told the same thing.
+def _is_rate_limited(error: Exception) -> bool:
+    text = str(error).lower()
+    return "429" in text or "too many requests" in text or "rate limit" in text
+
+
 async def call_with_retry(func, *args, max_attempts: int = DEFAULT_MAX_ATTEMPTS, **kwargs):
     """
     Call a python-telegram-bot API method (message.reply_text,
@@ -108,7 +122,7 @@ def call_sync_with_retry(func, *args, max_attempts: int = DEFAULT_MAX_ATTEMPTS, 
         try:
             return func(*args, **kwargs)
         except Exception as error:
-            if _is_permanent_failure(error):
+            if _is_permanent_failure(error) or _is_rate_limited(error):
                 raise
             if attempt >= max_attempts:
                 logger.error(f"Giving up after {attempt} attempts: {type(error).__name__}: {error}")

@@ -206,8 +206,16 @@ ERROR_GENERIC = (
 )
 ERROR_NO_VIDEO = "This post doesn't seem to have a *video* in it — I can only work with posts that include one."
 ERROR_NO_AUDIO = "This video doesn't seem to have any *sound* in it — I can only work with videos that include audio."
+ERROR_RATE_LIMITED = (
+    "I'm getting a *lot of requests* right now and hit my limit — this isn't "
+    "about your link. Please wait a few minutes and send it again."
+)
 
 NO_TRANSCRIPT_SAVED = "I don't have that transcript anymore — send me the link again and we'll start fresh."
+DAILY_LIMIT_REACHED = (
+    "You've hit today's *usage limit* so I can keep things fair for everyone "
+    "sharing the bot. Come back tomorrow and I'll be ready to go."
+)
 STILL_WORKING = "*Still working* on your last one — give me a moment to finish that first!"
 
 # --- Long-content confirmation (duration-based, shown before committing to

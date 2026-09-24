@@ -56,6 +56,22 @@ def init_database():
     if "title" not in existing_columns:
         cursor.execute("ALTER TABLE transcripts ADD COLUMN title TEXT")
 
+    # One row per user per day, incremented once per full pipeline run
+    # (see handlers/link_handler.py's PER_USER_DAILY_LIMIT) - keeps a
+    # single heavy user from burning through the whole bot's shared Groq
+    # quota alone. usage_date is a plain 'YYYY-MM-DD' string (UTC, from
+    # SQLite's own date('now')) rather than a datetime, since all that's
+    # ever needed is "which calendar day" - never compared or sorted as
+    # a real timestamp.
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS daily_usage (
+            user_id INTEGER NOT NULL,
+            usage_date TEXT NOT NULL,
+            request_count INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (user_id, usage_date)
+        )
+    """)
+
     connection.commit()
     connection.close()
 
@@ -168,3 +184,42 @@ def get_transcript_by_id(transcript_id, user_id):
     connection.close()
 
     return row
+
+
+def get_daily_usage_count(user_id):
+    """Returns how many pipeline runs this user has started today (UTC), 0 if none yet."""
+
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    cursor.execute("""
+        SELECT request_count FROM daily_usage
+        WHERE user_id = ? AND usage_date = date('now')
+    """, (user_id,))
+
+    row = cursor.fetchone()
+    connection.close()
+
+    return row[0] if row else 0
+
+
+def increment_daily_usage(user_id):
+    """
+    Call once per pipeline run actually started (not per Groq call within
+    it, and not for a run rejected by the cap check) - see
+    PER_USER_DAILY_LIMIT in handlers/link_handler.py for where this is
+    checked before a run begins.
+    """
+
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    cursor.execute("""
+        INSERT INTO daily_usage (user_id, usage_date, request_count)
+        VALUES (?, date('now'), 1)
+        ON CONFLICT(user_id, usage_date) DO UPDATE SET
+            request_count = request_count + 1
+    """, (user_id,))
+
+    connection.commit()
+    connection.close()

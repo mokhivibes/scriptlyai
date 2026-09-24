@@ -18,7 +18,13 @@ from services.ai_cleanup_service import clean_transcript
 from services.export_service import export_to_pdf, export_to_text
 from services.translation_service import translate_text
 from services.summary_service import summarize_transcript
-from database import add_transcript, get_transcript_by_id, get_interface_language
+from database import (
+    add_transcript,
+    get_transcript_by_id,
+    get_interface_language,
+    get_daily_usage_count,
+    increment_daily_usage,
+)
 from utils.network_retry import call_with_retry, call_sync_with_retry
 from utils.stickers import STICKER_PROCESSING, STICKER_DONE, STICKER_ERROR
 from handlers.command_handler import help_command, history_command, language_command
@@ -40,6 +46,17 @@ EXPORT_DIR = "downloads"
 # typical short-form clips (YouTube Shorts, TikTok, Reels) while catching
 # most full songs and longer spoken content.
 LONG_CONTENT_THRESHOLD_SECONDS = 90
+
+# Every full pipeline run costs at least 2 Groq calls (Whisper transcribe +
+# gpt-oss-120b cleanup, sometimes +1 more for a Summarize tap) against a
+# free-tier quota that's shared across every user of this bot, not
+# per-user (~1,000 chat completions/day, ~2,000 transcriptions/day as of
+# 2026-09-24 - see console.groq.com/docs/rate-limits). Without a per-user
+# cap, one heavy user could exhaust the whole shared daily quota and lock
+# out everyone else. 15/day comfortably covers normal use while keeping
+# that from happening; raise this (or drop it entirely) once billing is
+# on a paid tier without daily caps.
+PER_USER_DAILY_LIMIT = 15
 
 
 def _lang(user_id) -> str:
@@ -319,6 +336,21 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
     confirmed-after-warning path.
     """
 
+    # Checked here (not earlier in handle_link) so BOTH entry points - the
+    # immediate short-content path and the confirm/cancel callback for
+    # long content - go through one place. By the time _process_link runs,
+    # the CALLER has already set busy=True (see handle_link and
+    # _handle_confirm_long_content) - _mark_free here on the rejected path
+    # is required, not optional, or the user would stay stuck "busy"
+    # forever with nothing actually running. See PER_USER_DAILY_LIMIT's
+    # comment for why this cap exists at all.
+    if get_daily_usage_count(user_id) >= PER_USER_DAILY_LIMIT:
+        _mark_free(context)
+        await call_with_retry(message.reply_text, msg.t(lang, "DAILY_LIMIT_REACHED"), parse_mode="Markdown")
+        return
+
+    increment_daily_usage(user_id)
+
     _mark_busy(context)
 
     # Populated as the pipeline progresses, so the finally block below can
@@ -512,6 +544,13 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
             error_reply_text = msg.t(lang, "ERROR_NETWORK")
         elif "too large" in error_text or "entity too large" in error_text:
             error_reply_text = msg.t(lang, "ERROR_TOO_LARGE")
+        elif "429" in error_text or "too many requests" in error_text or "rate limit" in error_text:
+            # Groq (transcription/cleanup) hit its own rate limit - see
+            # utils/network_retry.py's _is_rate_limited. Distinct from
+            # ERROR_GENERIC on purpose: telling the user to "check your
+            # link" here would be actively wrong, since the link is fine
+            # and the problem is capacity that only clears with time.
+            error_reply_text = msg.t(lang, "ERROR_RATE_LIMITED")
         else:
             error_reply_text = msg.t(lang, "ERROR_GENERIC")
 

@@ -173,8 +173,16 @@ ERROR_GENERIC = (
 )
 ERROR_NO_VIDEO = "Bu postda *video* yoʻqday koʻrinadi — men faqat video boʻlgan postlar bilan ishlayman."
 ERROR_NO_AUDIO = "Bu videoda *ovoz* yoʻqday koʻrinadi — men faqat ovozi bor videolar bilan ishlayman."
+ERROR_RATE_LIMITED = (
+    "Hozir menga *juda koʻp soʻrov* kelyapti va chegaraga yetdim — bu sizning "
+    "havolangizga bogʻliq emas. Bir necha daqiqa kutib, qayta yuboring."
+)
 
 NO_TRANSCRIPT_SAVED = "Bu matn endi mendan yoʻqoldi — havolani qayta yuboring, yangidan boshlaymiz."
+DAILY_LIMIT_REACHED = (
+    "Bugungi *foydalanish chegarasiga* yetdingiz — bu botdan foydalanadigan "
+    "hammaga adolatli boʻlishi uchun. Ertaga qaytib keling!"
+)
 STILL_WORKING = "*Hali oldingi soʻrovingiz* ustida ishlayapman — uni tugatishga biroz vaqt bering!"
 
 LONG_CONTENT_WARNING = (
