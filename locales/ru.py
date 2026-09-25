@@ -130,7 +130,7 @@ TRANSLATION_SAME_LANGUAGE = "Так это же уже на этом языке!
 # Shown only for a translate button tapped from a keyboard that was
 # already on screen before TRANSLATION_ENABLED was turned off - see that
 # constant's comment in handlers/link_handler.py.
-TRANSLATION_UNAVAILABLE = "🌐 Перевод сейчас недоступен — загляни попозже!"
+TRANSLATION_UNAVAILABLE = "🌐 Перевод пока недоступен — скоро появится!"
 SUMMARIZING = "🔍 Делаю краткое содержание..."
 SUMMARY_HEADER_PARTS = [("Вот краткое содержание:", False)]
 SUMMARY_FAILED = "🔍 Хм, не получилось собрать краткое содержание. _Нажми на кнопку ниже, чтобы попробовать снова._"

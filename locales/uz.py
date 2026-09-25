@@ -130,7 +130,7 @@ TRANSLATION_SAME_LANGUAGE = "Bu allaqachon shu tilda-ku!"
 # Shown only for a translate button tapped from a keyboard that was
 # already on screen before TRANSLATION_ENABLED was turned off - see that
 # constant's comment in handlers/link_handler.py.
-TRANSLATION_UNAVAILABLE = "🌐 Tarjima hozircha mavjud emas — birozdan keyin qaytadan urinib koʻring!"
+TRANSLATION_UNAVAILABLE = "🌐 Tarjima hozircha mavjud emas — tez orada qoʻshiladi!"
 SUMMARIZING = "🔍 Qisqacha mazmunini tayyorlayapman..."
 SUMMARY_HEADER_PARTS = [("Mana qisqacha mazmuni:", False)]
 SUMMARY_FAILED = "🔍 Voy, qisqacha mazmunini tayyorlay olmadim. _Qayta urinish uchun quyidagi tugmani bosing._"

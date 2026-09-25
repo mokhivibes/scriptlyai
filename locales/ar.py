@@ -131,7 +131,7 @@ TRANSLATION_SAME_LANGUAGE = "هذا أصلاً بهذه اللغة!"
 # Shown only for a translate button tapped from a keyboard that was
 # already on screen before TRANSLATION_ENABLED was turned off - see that
 # constant's comment in handlers/link_handler.py.
-TRANSLATION_UNAVAILABLE = "🌐 الترجمة غير متاحة حالياً — تحقق مرة أخرى قريباً!"
+TRANSLATION_UNAVAILABLE = "🌐 الترجمة غير متاحة بعد — ستُضاف قريباً!"
 SUMMARIZING = "🔍 ألخّص الآن..."
 SUMMARY_HEADER_PARTS = [("إليك ملخصاً سريعاً:", False)]
 SUMMARY_FAILED = "🔍 للأسف لم أتمكن من تجهيز الملخص. _اضغط الزر أدناه لتجربة ذلك مرة أخرى._"
