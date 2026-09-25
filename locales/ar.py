@@ -13,9 +13,11 @@ _PLATFORM_LIST_PARTS = [
 ]
 
 # See en.py's _FEATURE_LIST_PARTS for what this does and why.
+# Translate is deliberately left out here - see TRANSLATION_ENABLED in
+# handlers/link_handler.py for why; don't advertise a feature that's
+# currently hidden from the button menu.
 _FEATURE_LIST_PARTS = [
     ("✍️ ", False), ("تفريغ نصي", True), (" — أحوّل ما يُقال إلى نص واضح ومرتب\n", False),
-    ("🌐 ", False), ("ترجمة", True), (" — بلغة أخرى\n", False),
     ("🔍 ", False), ("تلخيص", True), (" — إذا أردت الخلاصة فقط\n", False),
     ("📄 ", False), ("تصدير", True), (" — كملف PDF أو نصي", False),
 ]
@@ -126,6 +128,10 @@ TRANSLATING = "🌐 أترجم الآن..."
 TRANSLATION_HEADER_PARTS = [("إليك الترجمة:", False)]
 TRANSLATION_FAILED = "🌐 للأسف لم تنجح الترجمة. _اختر لغة أدناه لتجربة ذلك مرة أخرى._"
 TRANSLATION_SAME_LANGUAGE = "هذا أصلاً بهذه اللغة!"
+# Shown only for a translate button tapped from a keyboard that was
+# already on screen before TRANSLATION_ENABLED was turned off - see that
+# constant's comment in handlers/link_handler.py.
+TRANSLATION_UNAVAILABLE = "🌐 الترجمة غير متاحة حالياً — تحقق مرة أخرى قريباً!"
 SUMMARIZING = "🔍 ألخّص الآن..."
 SUMMARY_HEADER_PARTS = [("إليك ملخصاً سريعاً:", False)]
 SUMMARY_FAILED = "🔍 للأسف لم أتمكن من تجهيز الملخص. _اضغط الزر أدناه لتجربة ذلك مرة أخرى._"

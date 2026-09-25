@@ -13,9 +13,11 @@ _PLATFORM_LIST_PARTS = [
 ]
 
 # See en.py's _FEATURE_LIST_PARTS for what this does and why.
+# Translate is deliberately left out here - see TRANSLATION_ENABLED in
+# handlers/link_handler.py for why; don't advertise a feature that's
+# currently hidden from the button menu.
 _FEATURE_LIST_PARTS = [
     ("✍️ ", False), ("Расшифровка", True), (" — превращаю сказанное в чистый, читаемый текст\n", False),
-    ("🌐 ", False), ("Перевод", True), (" — на другой язык\n", False),
     ("🔍 ", False), ("Краткое содержание", True), (" — если нужна суть\n", False),
     ("📄 ", False), ("Экспорт", True), (" — сохраню как PDF или текстовый файл", False),
 ]
@@ -125,6 +127,10 @@ TRANSLATING = "🌐 Перевожу..."
 TRANSLATION_HEADER_PARTS = [("Вот перевод:", False)]
 TRANSLATION_FAILED = "🌐 Хм, перевод не получился. _Выбери язык ниже, чтобы попробовать снова._"
 TRANSLATION_SAME_LANGUAGE = "Так это же уже на этом языке!"
+# Shown only for a translate button tapped from a keyboard that was
+# already on screen before TRANSLATION_ENABLED was turned off - see that
+# constant's comment in handlers/link_handler.py.
+TRANSLATION_UNAVAILABLE = "🌐 Перевод сейчас недоступен — загляни попозже!"
 SUMMARIZING = "🔍 Делаю краткое содержание..."
 SUMMARY_HEADER_PARTS = [("Вот краткое содержание:", False)]
 SUMMARY_FAILED = "🔍 Хм, не получилось собрать краткое содержание. _Нажми на кнопку ниже, чтобы попробовать снова._"

@@ -13,9 +13,11 @@ _PLATFORM_LIST_PARTS = [
 ]
 
 # See en.py's _FEATURE_LIST_PARTS for what this does and why.
+# Translate is deliberately left out here - see TRANSLATION_ENABLED in
+# handlers/link_handler.py for why; don't advertise a feature that's
+# currently hidden from the button menu.
 _FEATURE_LIST_PARTS = [
     ("✍️ ", False), ("Matnga aylantirish", True), (" — aytilganlarni toza, oʻqilishi oson matnga aylantiraman\n", False),
-    ("🌐 ", False), ("Tarjima", True), (" — boshqa tilga\n", False),
     ("🔍 ", False), ("Qisqartirish", True), (" — qisqacha versiyasi kerak boʻlsa\n", False),
     ("📄 ", False), ("Eksport", True), (" — PDF yoki matn fayli sifatida", False),
 ]
@@ -125,6 +127,10 @@ TRANSLATING = "🌐 Tarjima qilyapman..."
 TRANSLATION_HEADER_PARTS = [("Mana tarjima:", False)]
 TRANSLATION_FAILED = "🌐 Voy, tarjima chiqmadi. _Qayta urinish uchun quyidan tilni tanlang._"
 TRANSLATION_SAME_LANGUAGE = "Bu allaqachon shu tilda-ku!"
+# Shown only for a translate button tapped from a keyboard that was
+# already on screen before TRANSLATION_ENABLED was turned off - see that
+# constant's comment in handlers/link_handler.py.
+TRANSLATION_UNAVAILABLE = "🌐 Tarjima hozircha mavjud emas — birozdan keyin qaytadan urinib koʻring!"
 SUMMARIZING = "🔍 Qisqacha mazmunini tayyorlayapman..."
 SUMMARY_HEADER_PARTS = [("Mana qisqacha mazmuni:", False)]
 SUMMARY_FAILED = "🔍 Voy, qisqacha mazmunini tayyorlay olmadim. _Qayta urinish uchun quyidagi tugmani bosing._"

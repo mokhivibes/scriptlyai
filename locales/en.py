@@ -19,9 +19,11 @@ _PLATFORM_LIST_PARTS = [
 # One line per capability, each its own bolded label + short description -
 # shared across the welcome/onboarding/help messages below so what the
 # bot can do is scannable at a glance instead of buried in a paragraph.
+# Translate is deliberately left out here - see TRANSLATION_ENABLED in
+# handlers/link_handler.py for why; don't advertise a feature that's
+# currently hidden from the button menu.
 _FEATURE_LIST_PARTS = [
     ("✍️ ", False), ("Transcribe", True), (" — turn what's said into clean, readable text\n", False),
-    ("🌐 ", False), ("Translate", True), (" — get it in another language\n", False),
     ("🔍 ", False), ("Summarize", True), (" — get the short version\n", False),
     ("📄 ", False), ("Export", True), (" — save it as a PDF or text file", False),
 ]
@@ -154,6 +156,10 @@ TRANSLATING = "🌐 Translating..."
 TRANSLATION_HEADER_PARTS = [("Here's the translation:", False)]
 TRANSLATION_FAILED = "🌐 Hmm, that translation didn't go through. _Pick a language below to try again._"
 TRANSLATION_SAME_LANGUAGE = "That's already the language this is in!"
+# Shown only for a translate button tapped from a keyboard that was
+# already on screen before TRANSLATION_ENABLED was turned off - see that
+# constant's comment in handlers/link_handler.py.
+TRANSLATION_UNAVAILABLE = "🌐 Translation isn't available right now — check back soon!"
 SUMMARIZING = "🔍 Summarizing..."
 SUMMARY_HEADER_PARTS = [("Here's a quick summary:", False)]
 SUMMARY_FAILED = "🔍 Hmm, I couldn't put a summary together. _Tap the button below to try again._"

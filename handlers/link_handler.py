@@ -73,6 +73,19 @@ PER_USER_DAILY_LIMIT = 15
 # past the threshold.
 GROQ_CAPACITY_WARNING_THRESHOLD = 350
 
+# Turned off 2026-09-25 - both of translation's free backends (Google's
+# unofficial endpoint, MyMemory) share one per-IP rate-limit budget with
+# no real SLA, and a single day of real testing exhausted it for over an
+# hour straight. Rather than exposing a feature that can silently fail for
+# real users, hiding it until there's either real demand to justify a paid
+# API (Google Cloud Translation - the only option that both supports
+# Uzbek and has an actual SLA, ~$20/million characters after a 500k/month
+# free tier) or the decision is revisited. The underlying implementation
+# (translation_service.py, the Translate button/handlers below) is left
+# fully intact - flip this back to True to bring it back with no other
+# changes needed.
+TRANSLATION_ENABLED = False
+
 
 def _lang(user_id) -> str:
     return get_interface_language(user_id) or msg.DEFAULT_LANGUAGE
@@ -157,16 +170,22 @@ async def send_copyable_result(message, header_parts, content: str):
 
 
 def build_export_keyboard(lang):
-    keyboard = [
-        [
-            InlineKeyboardButton(msg.t(lang, "EXPORT_PDF_BUTTON"), callback_data="export_pdf"),
-            InlineKeyboardButton(msg.t(lang, "EXPORT_TXT_BUTTON"), callback_data="export_txt"),
-        ],
-        [
+    keyboard = [[
+        InlineKeyboardButton(msg.t(lang, "EXPORT_PDF_BUTTON"), callback_data="export_pdf"),
+        InlineKeyboardButton(msg.t(lang, "EXPORT_TXT_BUTTON"), callback_data="export_txt"),
+    ]]
+
+    # Second row - Translate + Summarize side by side while translation is
+    # enabled, Summarize alone (matching build_summarize_retry_keyboard's
+    # single-button-row pattern) while it's off - see TRANSLATION_ENABLED.
+    if TRANSLATION_ENABLED:
+        keyboard.append([
             InlineKeyboardButton(msg.t(lang, "TRANSLATE_BUTTON"), callback_data="translate_menu"),
             InlineKeyboardButton(msg.t(lang, "SUMMARIZE_BUTTON"), callback_data="summarize"),
-        ],
-    ]
+        ])
+    else:
+        keyboard.append([InlineKeyboardButton(msg.t(lang, "SUMMARIZE_BUTTON"), callback_data="summarize")])
+
     return InlineKeyboardMarkup(keyboard)
 
 
@@ -695,10 +714,20 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
     try:
         if data in ("export_pdf", "export_txt"):
             await _handle_export(query, context, lang, data)
-        elif data == "translate_menu":
-            await _handle_translate_menu(query, context, lang)
-        elif data.startswith("translate_to_"):
-            await _handle_translate_to(query, context, lang, data.replace("translate_to_", ""))
+        elif data == "translate_menu" or data.startswith("translate_to_"):
+            # Catches a tap on a translate button from a keyboard that was
+            # already on screen before TRANSLATION_ENABLED was turned off -
+            # without this, an old message's button would silently route
+            # into handlers that still work fine but expose a feature
+            # that's meant to be hidden right now.
+            if not TRANSLATION_ENABLED:
+                await call_with_retry(
+                    query.message.reply_text, msg.t(lang, "TRANSLATION_UNAVAILABLE"), parse_mode="Markdown"
+                )
+            elif data == "translate_menu":
+                await _handle_translate_menu(query, context, lang)
+            else:
+                await _handle_translate_to(query, context, lang, data.replace("translate_to_", ""))
         elif data == "summarize":
             await _handle_summarize(query, context, lang)
         elif data.startswith("history_"):
