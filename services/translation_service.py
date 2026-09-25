@@ -69,6 +69,17 @@ TRANSLATION_ERROR_MARKERS = (
 MAX_RETRIES = 4
 RETRY_DELAY_SECONDS = 3
 
+# MyMemoryTranslator hard-rejects text over 500 chars (raises
+# NotValidLength) - a MUCH smaller limit than Google's ~5000. Discovered
+# live 2026-09-25: Google's free endpoint hit a real, sustained
+# TooManyRequests rate-limit window, and the MyMemory fallback - meant to
+# be the safety net for exactly this - turned out to have been silently
+# broken the whole time for any chunk longer than 500 chars, because it
+# was being handed chunks sized for Google's limit (up to
+# TRANSLATE_CHUNK_MAX_CHARS=4500) and immediately raising NotValidLength
+# on all of them. 450 leaves a small safety margin under the real 500 cap.
+MYMEMORY_CHUNK_MAX_CHARS = 450
+
 
 def _looks_like_translation_error(result: str) -> bool:
     lowered = result.lower()
@@ -118,12 +129,28 @@ def _translate_chunk_fallback(chunk: str, source_language: str, target_language:
     if not mymemory_source or not mymemory_target:
         return None
 
+    # `chunk` arrives sized for Google (up to TRANSLATE_CHUNK_MAX_CHARS=
+    # 4500) - re-split it further for MyMemory's much smaller 500-char
+    # limit, translate each piece, then rejoin. Almost every real chunk
+    # needs this (4500 >> 500), so skipping it (as the code used to do)
+    # meant this fallback was effectively never usable in practice.
+    sub_chunks, sub_separators = split_into_chunks(chunk, max_chars=MYMEMORY_CHUNK_MAX_CHARS)
+    if not sub_chunks:
+        return None
+
+    translator = MyMemoryTranslator(source=mymemory_source, target=mymemory_target)
+    translated_sub_chunks = []
+
     try:
-        translator = MyMemoryTranslator(source=mymemory_source, target=mymemory_target)
-        result = translator.translate(chunk)
+        for i, sub_chunk in enumerate(sub_chunks):
+            if i > 0:
+                time.sleep(0.5)
+            translated_sub_chunks.append(translator.translate(sub_chunk))
     except Exception:
         logger.exception("MyMemory fallback translation also failed")
         return None
+
+    result = join_chunks(translated_sub_chunks, sub_separators)
 
     if _looks_like_translation_error(result) or _looks_like_passthrough_failure(
         chunk, result, source_language, target_language
