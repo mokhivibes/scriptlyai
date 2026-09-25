@@ -1,7 +1,7 @@
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
-from database import get_transcripts_for_user, get_interface_language, set_interface_language
+from database import get_transcripts_for_user, get_interface_language, set_interface_language, delete_user_data
 from utils import messages as msg
 from utils.network_retry import call_with_retry
 from utils.stickers import STICKER_WELCOME
@@ -144,3 +144,67 @@ async def set_language_callback(update: Update, context: ContextTypes.DEFAULT_TY
             parse_mode="Markdown",
             reply_markup=build_shortcuts_keyboard(language_code)
         )
+
+
+def build_privacy_keyboard(lang):
+    keyboard = [[InlineKeyboardButton(msg.t(lang, "DELETE_DATA_BUTTON"), callback_data="request_delete_data")]]
+    return InlineKeyboardMarkup(keyboard)
+
+
+def build_delete_data_confirm_keyboard(lang):
+    keyboard = [[
+        InlineKeyboardButton(msg.t(lang, "DELETE_DATA_CONFIRM_YES_BUTTON"), callback_data="confirm_delete_data"),
+        InlineKeyboardButton(msg.t(lang, "CONFIRM_NO_BUTTON"), callback_data="cancel_delete_data"),
+    ]]
+    return InlineKeyboardMarkup(keyboard)
+
+
+async def privacy_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    lang = _lang(update.effective_user.id)
+    # Fully static, developer-written copy - safe to format.
+    await call_with_retry(
+        update.message.reply_text,
+        msg.t(lang, "PRIVACY_TEXT"),
+        parse_mode="Markdown",
+        reply_markup=build_privacy_keyboard(lang)
+    )
+
+
+async def request_delete_data_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Separate confirm step before request_delete_data_callback actually
+    deletes anything - this is a permanent, irreversible action (unlike
+    /cancel, which only clears in-flight in-memory state), so it gets the
+    same explicit confirm/cancel pattern already used for long-content
+    warnings in handlers/link_handler.py.
+    """
+
+    query = update.callback_query
+    await call_with_retry(query.answer)
+    lang = _lang(query.from_user.id)
+
+    await call_with_retry(
+        query.message.reply_text,
+        msg.t(lang, "DELETE_DATA_CONFIRM_PROMPT"),
+        parse_mode="Markdown",
+        reply_markup=build_delete_data_confirm_keyboard(lang)
+    )
+
+
+async def confirm_delete_data_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await call_with_retry(query.answer)
+    lang = _lang(query.from_user.id)
+
+    delete_user_data(query.from_user.id)
+    context.user_data.clear()
+
+    await call_with_retry(query.message.reply_text, msg.t(lang, "DELETE_DATA_DONE"), parse_mode="Markdown")
+
+
+async def cancel_delete_data_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await call_with_retry(query.answer)
+    lang = _lang(query.from_user.id)
+
+    await call_with_retry(query.message.reply_text, msg.t(lang, "DELETE_DATA_CANCELLED"), parse_mode="Markdown")

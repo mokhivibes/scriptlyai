@@ -87,6 +87,8 @@ HELP_TEXT_PARTS = [
     (" — change how I talk to you\n", False),
     ("/cancel", True),
     (" — start over\n", False),
+    ("/privacy", True),
+    (" — see what I store, and delete it\n", False),
     ("/start", True),
     (" — say hi again", False),
 ]
@@ -254,6 +256,26 @@ CANCEL_HAD_DATA = (
 )
 CANCEL_NOTHING = "*Nothing to cancel* right now — I'm just here waiting. Send me a link whenever you're ready."
 
+# --- /privacy ---
+PRIVACY_TEXT = (
+    "🔒 *What I store*\n\n"
+    "• Your Telegram ID, username, and first name — so I know it's you\n"
+    "• Your chosen interface language — so I remember it next time\n"
+    "• Transcripts you've generated (platform, detected language, title, date) — so /history works\n\n"
+    "*What I don't store*\n\n"
+    "• The video or audio file itself — deleted right after processing, every time\n"
+    "• Anything you haven't sent me\n\n"
+    "Your data is never sold or shared. You can delete everything below, anytime."
+)
+DELETE_DATA_BUTTON = "🗑 Delete my data"
+DELETE_DATA_CONFIRM_PROMPT = (
+    "⚠️ This *permanently* deletes all your saved transcripts and resets your language preference. "
+    "This can't be undone. Continue?"
+)
+DELETE_DATA_CONFIRM_YES_BUTTON = "🗑 Yes, delete everything"
+DELETE_DATA_DONE = "✅ *All done* — your data has been deleted. Send /start whenever you'd like to begin again."
+DELETE_DATA_CANCELLED = "Okay, nothing was deleted."
+
 # --- /history ---
 HISTORY_HEADER = "Here's your last few transcripts — tap one to see it again:"
 # See en.py's _PLATFORM_LIST_PARTS comment for why this is entity-based.
@@ -303,4 +325,5 @@ COMMAND_DESCRIPTIONS = {
     "cancel": "Stop and clear the current job",
     "history": "Revisit past transcripts",
     "language": "Change how I talk to you",
+    "privacy": "See what I store, and delete it",
 }

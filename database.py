@@ -331,3 +331,29 @@ def cache_translation(text, source_language, target_language, translated_text):
 
     connection.commit()
     connection.close()
+
+
+def delete_user_data(user_id):
+    """
+    Permanently deletes everything this user_id is identifiable in - see
+    /privacy (handlers/command_handler.py). Deliberately does NOT touch
+    translation_cache: it's keyed only by a hash of the source text plus
+    the language pair, with no user_id stored anywhere in that table, so
+    there's nothing there to attribute back to this (or any) user.
+
+    Removing the users row (not just clearing its fields) means the next
+    /start looks exactly like a first-time user - the onboarding language
+    picker runs again, which is the correct behavior after a full data
+    deletion rather than a special-cased "deleted but still remembered"
+    state.
+    """
+
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    cursor.execute("DELETE FROM transcripts WHERE user_id = ?", (user_id,))
+    cursor.execute("DELETE FROM daily_usage WHERE user_id = ?", (user_id,))
+    cursor.execute("DELETE FROM users WHERE user_id = ?", (user_id,))
+
+    connection.commit()
+    connection.close()

@@ -76,6 +76,8 @@ HELP_TEXT_PARTS = [
     (" — til sozlamasini oʻzgartirish\n", False),
     ("/cancel", True),
     (" — bekor qilish va boshidan boshlash\n", False),
+    ("/privacy", True),
+    (" — nimalarni saqlayman va ularni qanday oʻchirish\n", False),
     ("/start", True),
     (" — yana salomlashish", False),
 ]
@@ -210,6 +212,26 @@ CANCEL_HAD_DATA = (
 )
 CANCEL_NOTHING = "*Hozircha bekor qiladigan narsa yoʻq* — men shunchaki kutyapman. Tayyor boʻlganingizda havola yuboring."
 
+# --- /privacy ---
+PRIVACY_TEXT = (
+    "🔒 *Nimalarni saqlayman*\n\n"
+    "• Telegram ID, foydalanuvchi nomi va ismingiz — sizni tanish uchun\n"
+    "• Tanlangan interfeys tili — keyingi safar eslab qolish uchun\n"
+    "• Siz olgan matnlar (platforma, aniqlangan til, sarlavha, sana) — /history ishlashi uchun\n\n"
+    "*Nimalarni saqlamayman*\n\n"
+    "• Video yoki audio faylning oʻzi — qayta ishlangandan keyin darhol oʻchiriladi, har safar\n"
+    "• Siz menga yubormagan hech narsa\n\n"
+    "Maʼlumotlaringiz hech qachon sotilmaydi yoki ulashilmaydi. Istalgan vaqtda hammasini oʻchirishingiz mumkin."
+)
+DELETE_DATA_BUTTON = "🗑 Maʼlumotlarimni oʻchirish"
+DELETE_DATA_CONFIRM_PROMPT = (
+    "⚠️ Bu barcha saqlangan matnlaringizni *butunlay* oʻchiradi va interfeys tilini "
+    "qayta tiklaydi. Buni ortga qaytarib boʻlmaydi. Davom etamizmi?"
+)
+DELETE_DATA_CONFIRM_YES_BUTTON = "🗑 Ha, hammasini oʻchiring"
+DELETE_DATA_DONE = "✅ *Tayyor* — maʼlumotlaringiz oʻchirildi. Qaytadan boshlash uchun /start yuboring."
+DELETE_DATA_CANCELLED = "Xoʻp, hech narsa oʻchirilmadi."
+
 HISTORY_HEADER = "Mana oxirgi matnlaringiz — qayta koʻrish uchun birortasini bosing:"
 # See en.py's _PLATFORM_LIST_PARTS comment for why this is entity-based.
 HISTORY_EMPTY_PARTS = [
@@ -253,4 +275,5 @@ COMMAND_DESCRIPTIONS = {
     "cancel": "Bekor qilish va boshidan boshlash",
     "history": "Oldingi matnlarni koʻrish",
     "language": "Tilni oʻzgartirish",
+    "privacy": "Nimalarni saqlayman va qanday oʻchirish",
 }

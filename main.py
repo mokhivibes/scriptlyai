@@ -22,6 +22,10 @@ from handlers.command_handler import (
     set_language_callback,
     build_language_picker_keyboard,
     build_shortcuts_keyboard,
+    privacy_command,
+    request_delete_data_callback,
+    confirm_delete_data_callback,
+    cancel_delete_data_callback,
 )
 from utils import messages as msg
 from utils.network_retry import call_with_retry
@@ -162,6 +166,7 @@ def main():
     application.add_handler(CommandHandler("cancel", cancel_command))
     application.add_handler(CommandHandler("history", history_command))
     application.add_handler(CommandHandler("language", language_command))
+    application.add_handler(CommandHandler("privacy", privacy_command))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_link))
     # Anything else a user might send directly (voice note, video file,
     # photo, document, sticker) - previously unhandled entirely, meaning
@@ -178,6 +183,12 @@ def main():
     # the catch-all handler below - registered first so it takes priority
     # for matching callback_data.
     application.add_handler(CallbackQueryHandler(set_language_callback, pattern="^setlang_"))
+    # /privacy's delete-my-data flow - its own namespace too, same reasoning
+    # as setlang_* above (registered before the catch-all so these exact
+    # matches take priority).
+    application.add_handler(CallbackQueryHandler(request_delete_data_callback, pattern="^request_delete_data$"))
+    application.add_handler(CallbackQueryHandler(confirm_delete_data_callback, pattern="^confirm_delete_data$"))
+    application.add_handler(CallbackQueryHandler(cancel_delete_data_callback, pattern="^cancel_delete_data$"))
     application.add_handler(CallbackQueryHandler(handle_callback_query))
 
     application.add_error_handler(on_error)

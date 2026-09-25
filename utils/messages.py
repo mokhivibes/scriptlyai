@@ -62,7 +62,7 @@ def language_native_name(code: str) -> str:
 
 # Fixed order for Telegram's chat menu button command list - matches the
 # CommandHandler registration order in main.py.
-COMMAND_ORDER = ("start", "help", "cancel", "history", "language")
+COMMAND_ORDER = ("start", "help", "cancel", "history", "language", "privacy")
 
 
 def command_descriptions(lang):
