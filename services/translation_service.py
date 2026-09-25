@@ -1,3 +1,4 @@
+import html
 import logging
 import time
 
@@ -145,7 +146,12 @@ def _translate_chunk_fallback(chunk: str, source_language: str, target_language:
         for i, sub_chunk in enumerate(sub_chunks):
             if i > 0:
                 time.sleep(0.5)
-            translated_sub_chunks.append(translator.translate(sub_chunk))
+            # MyMemory's API has been observed to HTML-encode punctuation
+            # in its response (an apostrophe/quote in the source text
+            # coming back as literal "&#39;"/"&quot;" - real example, seen
+            # 2026-09-25 live) - unescape() is a safe no-op when there's
+            # nothing to decode.
+            translated_sub_chunks.append(html.unescape(translator.translate(sub_chunk)))
     except Exception:
         logger.exception("MyMemory fallback translation also failed")
         return None
