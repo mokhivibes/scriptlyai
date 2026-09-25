@@ -12,6 +12,7 @@ from deep_translator.exceptions import (
 )
 
 from utils.text_chunker import split_into_chunks, join_chunks
+from database import get_cached_translation, cache_translation
 
 logger = logging.getLogger(__name__)
 
@@ -223,7 +224,21 @@ def translate_text(text: str, target_language: str, source_language: str = "auto
     (e.g. "ar") whenever it's known - Google's own auto-detect ("auto") has
     been observed to fail silently on informal/dialectal Arabic speech,
     returning the untranslated source text with no error at all.
+
+    Checks database.py's translation_cache first and stores a fresh
+    result there before returning - both Google's and MyMemory's free
+    endpoints have a real, shared, per-IP quota (discovered live
+    2026-09-25: a burst of testing exhausted both at once), so an
+    identical repeat request - a double-tap on the Translate button, a
+    retry after a transient failure, reopening the same transcript from
+    history and translating it again - is served instantly instead of
+    spending another call against that shared budget.
     """
+
+    cached = get_cached_translation(text, source_language, target_language)
+    if cached is not None:
+        logger.info(f"Translation cache hit ({source_language}->{target_language}) - skipping API call")
+        return cached
 
     translator = GoogleTranslator(source=source_language, target=target_language)
 
@@ -241,4 +256,6 @@ def translate_text(text: str, target_language: str, source_language: str = "auto
             time.sleep(0.5)
         translated_chunks.append(_translate_chunk(translator, chunk, source_language, target_language))
 
-    return join_chunks(translated_chunks, separators)
+    result = join_chunks(translated_chunks, separators)
+    cache_translation(text, source_language, target_language, result)
+    return result

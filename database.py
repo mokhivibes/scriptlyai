@@ -83,6 +83,24 @@ def init_database():
         )
     """)
 
+    # Keyed by a hash of the source text (not the text itself - transcripts
+    # can be long) plus the language pair, so an identical translation
+    # request - a double-tap, a retry after a transient failure, or
+    # reopening the same result from history - is served instantly instead
+    # of spending another call against Google/MyMemory's shared free-tier
+    # quota. No TTL/expiry: a translation of fixed source text doesn't go
+    # stale, so there's nothing to invalidate.
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS translation_cache (
+            text_hash TEXT NOT NULL,
+            source_language TEXT NOT NULL,
+            target_language TEXT NOT NULL,
+            translated_text TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            PRIMARY KEY (text_hash, source_language, target_language)
+        )
+    """)
+
     connection.commit()
     connection.close()
 
@@ -271,6 +289,45 @@ def mark_capacity_alert_sent():
     cursor = connection.cursor()
 
     cursor.execute("INSERT OR IGNORE INTO capacity_alerts (alert_date) VALUES (date('now'))")
+
+    connection.commit()
+    connection.close()
+
+
+def _hash_text(text):
+    import hashlib
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def get_cached_translation(text, source_language, target_language):
+    """Returns a previously-translated result for this exact (text, source,
+    target) combination, or None if it's never been translated before -
+    see translation_cache's comment in init_database() for why this exists."""
+
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    cursor.execute("""
+        SELECT translated_text FROM translation_cache
+        WHERE text_hash = ? AND source_language = ? AND target_language = ?
+    """, (_hash_text(text), source_language, target_language))
+
+    row = cursor.fetchone()
+    connection.close()
+
+    return row[0] if row else None
+
+
+def cache_translation(text, source_language, target_language, translated_text):
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    cursor.execute("""
+        INSERT INTO translation_cache (text_hash, source_language, target_language, translated_text)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(text_hash, source_language, target_language) DO UPDATE SET
+            translated_text = excluded.translated_text
+    """, (_hash_text(text), source_language, target_language, translated_text))
 
     connection.commit()
     connection.close()
