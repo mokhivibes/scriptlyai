@@ -1,0 +1,26 @@
+[Unit]
+Description=ScriptlyAI Telegram bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=scriptlyai
+WorkingDirectory=/home/scriptlyai/telegram-media-bot
+ExecStart=/home/scriptlyai/telegram-media-bot/venv/bin/python /home/scriptlyai/telegram-media-bot/main.py
+
+# Restart on crash, an uncaught exception, or a network blip - same
+# reasoning as the launchd KeepAlive it replaces: main.py's
+# application.run_polling() blocks forever, so there's no "successful
+# exit" case to distinguish from a crash here.
+Restart=always
+RestartSec=10
+
+# Journald captures stdout/stderr automatically (view with
+# `journalctl -u scriptlyai -f`) - logs/bot.log (set up by
+# logging_config.py) still exists too, same as on the Mac.
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
