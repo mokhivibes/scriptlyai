@@ -5,13 +5,21 @@ from bidi.algorithm import get_display
 from fpdf import FPDF
 
 
-# macOS system font covering Latin, Cyrillic, and Arabic in one file - needed
-# because the transcript/translation can be in any of the 4 supported
-# languages. Not bundled in the repo (it's a licensed system font); if this
-# ever runs on a machine without it, swap in a free alternative such as
-# Noto Sans + Noto Naskh Arabic.
-FONT_PATH = "/Library/Fonts/Arial Unicode.ttf"
-FONT_NAME = "ExportFont"
+# Bundled in the repo (assets/fonts/, SIL Open Font License - free to
+# redistribute) rather than relying on a system font path, after
+# discovering the previous approach (macOS's Arial Unicode.ttf) doesn't
+# exist at all on Linux - would have broken PDF export silently the
+# moment this ran anywhere but a Mac. Two separate files/font names
+# rather than one "kitchen sink" font: Noto Sans covers Latin + Cyrillic
+# well but not Arabic at all, and a dedicated Arabic font (Noto Sans
+# Arabic) renders Arabic script better than a single pan-Unicode font
+# would anyway. export_to_pdf() switches between them based on
+# is_arabic - see there.
+FONT_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "fonts")
+FONT_PATH_LATIN = os.path.join(FONT_DIR, "NotoSans-Regular.ttf")
+FONT_PATH_ARABIC = os.path.join(FONT_DIR, "NotoSansArabic-Regular.ttf")
+FONT_NAME_LATIN = "ExportFontLatin"
+FONT_NAME_ARABIC = "ExportFontArabic"
 
 EXPORT_DIR = "downloads"
 
@@ -67,8 +75,9 @@ def export_to_pdf(text: str, filepath: str, language_code: str = "en"):
     pdf = FPDF()
     pdf.set_margins(PAGE_MARGIN, PAGE_MARGIN, PAGE_MARGIN)
     pdf.add_page()
-    pdf.add_font(FONT_NAME, "", FONT_PATH)
-    pdf.set_font(FONT_NAME, size=13)
+    pdf.add_font(FONT_NAME_LATIN, "", FONT_PATH_LATIN)
+    pdf.add_font(FONT_NAME_ARABIC, "", FONT_PATH_ARABIC)
+    pdf.set_font(FONT_NAME_ARABIC if is_arabic else FONT_NAME_LATIN, size=13)
 
     max_width = pdf.w - 2 * PAGE_MARGIN
 
