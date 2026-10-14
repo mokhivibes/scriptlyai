@@ -31,3 +31,6 @@ LOGO_PATH = "assets/logo.png"
 # just goes silent if unset.
 OWNER_USER_ID = os.getenv("OWNER_USER_ID")
 OWNER_USER_ID = int(OWNER_USER_ID) if OWNER_USER_ID else None
+
+# Appended under everything the bot sends out, so shared results lead back here.
+BOT_USERNAME = "@ScriptlyAI_bot"

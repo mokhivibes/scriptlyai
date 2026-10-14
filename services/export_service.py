@@ -1,5 +1,7 @@
 import os
 
+from config import BOT_USERNAME
+
 import arabic_reshaper
 from bidi.algorithm import get_display
 from fpdf import FPDF
@@ -91,11 +93,14 @@ def export_to_pdf(text: str, filepath: str, language_code: str = "en"):
 
         pdf.ln(PARAGRAPH_SPACING)
 
+    pdf.set_font(FONT_NAME_LATIN, size=10)
+    pdf.cell(0, LINE_HEIGHT, BOT_USERNAME, align="C", new_x="LMARGIN", new_y="NEXT")
+
     pdf.output(filepath)
     return filepath
 
 
 def export_to_text(text: str, filepath: str):
     with open(filepath, "w", encoding="utf-8") as f:
-        f.write(text)
+        f.write(f"{text}\n\n— {BOT_USERNAME}\n")
     return filepath

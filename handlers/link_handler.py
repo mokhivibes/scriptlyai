@@ -34,7 +34,7 @@ from database import (
 from utils.network_retry import call_with_retry, call_sync_with_retry
 from utils.stickers import STICKER_PROCESSING, STICKER_DONE, STICKER_ERROR
 from handlers.command_handler import help_command, history_command, language_command
-from config import OWNER_USER_ID
+from config import OWNER_USER_ID, BOT_USERNAME
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +47,9 @@ TELEGRAM_MESSAGE_MAX_CHARS = 4000
 EXPORT_DIR = "downloads"
 
 LYRICS_SEARCH_MAX_CHARS = 80
+
+# For parse_mode="Markdown" captions, where a bare "_" in the handle would start italics.
+MARKDOWN_BRAND_LINE = "\n" + BOT_USERNAME.replace("_", "\\_")
 
 # Telegram's standard Bot API refuses getFile for anything bigger than
 # this; going higher needs a self-hosted local Bot API server.
@@ -160,6 +163,7 @@ async def send_result_text(message, header_parts, content: str):
     chunks, _ = split_into_chunks(content, max_chars=TELEGRAM_MESSAGE_MAX_CHARS)
     if not chunks:
         chunks = [""]
+    chunks[-1] += f"\n\n— {BOT_USERNAME}"
 
     first_text, first_entities = build_bold_message(
         list(header_parts) + [("\n\n", False), (chunks[0], False)]
@@ -642,7 +646,7 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
                     message.reply_audio,
                     audio=audio_file,
                     filename=os.path.basename(audio_path),
-                    caption=msg.t(lang, "AUDIO_CAPTION")
+                    caption=f"{msg.t(lang, 'AUDIO_CAPTION')}\n{BOT_USERNAME}"
                 )
 
         await call_with_retry(status_message.edit_text, msg.transcribing_message(lang), parse_mode="Markdown")
@@ -919,11 +923,11 @@ async def _handle_export(query, context, lang, data):
             # it must match the TRANSCRIPT's own spoken language, not the
             # bot's interface language.
             await asyncio.to_thread(export_to_pdf, transcript, filepath, language_code=detected_language)
-            caption = msg.export_ready_caption(lang, "pdf")
+            caption = msg.export_ready_caption(lang, "pdf") + MARKDOWN_BRAND_LINE
         else:
             filepath = os.path.join(EXPORT_DIR, f"transcript_{unique_id}.txt")
             await asyncio.to_thread(export_to_text, transcript, filepath)
-            caption = msg.export_ready_caption(lang, "text")
+            caption = msg.export_ready_caption(lang, "text") + MARKDOWN_BRAND_LINE
 
         # caption's {file_format} comes from a fixed dict ("PDF"/"text
         # file"), never from the transcript content itself - safe.
