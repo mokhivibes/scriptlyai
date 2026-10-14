@@ -264,6 +264,9 @@ FEEDBACK_USAGE = "💬 Есть отзыв или нашёл ошибку? От�
 FEEDBACK_THANKS = "🙏 Спасибо — твой отзыв дошёл до меня."
 FEEDBACK_TOO_SOON = "⏳ Подожди минуту, прежде чем отправлять ещё один отзыв."
 
+COPY_BUTTON = "📋 Копировать"
+COPY_HINT = "📋 Нажми на текст ниже, чтобы скопировать."
+
 PLATFORM_LABELS = {
     "youtube": "🎥 YouTube",
     "instagram": "📸 Instagram",

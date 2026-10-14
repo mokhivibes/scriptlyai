@@ -306,6 +306,9 @@ FEEDBACK_USAGE = "💬 Got feedback or found a bug? Send it along with the comma
 FEEDBACK_THANKS = "🙏 Thanks — your feedback reached me."
 FEEDBACK_TOO_SOON = "⏳ Please wait a minute before sending more feedback."
 
+COPY_BUTTON = "📋 Copy"
+COPY_HINT = "📋 Tap the text below to copy it."
+
 PLATFORM_LABELS = {
     "youtube": "🎥 YouTube",
     "instagram": "📸 Instagram",

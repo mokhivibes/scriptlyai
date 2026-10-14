@@ -259,6 +259,9 @@ FEEDBACK_USAGE = "💬 لديك ملاحظة أو وجدت خطأ؟ أرسلها
 FEEDBACK_THANKS = "🙏 شكراً — وصلتني ملاحظتك."
 FEEDBACK_TOO_SOON = "⏳ انتظر دقيقة قبل إرسال ملاحظة أخرى."
 
+COPY_BUTTON = "📋 نسخ"
+COPY_HINT = "📋 اضغط على النص أدناه لنسخه."
+
 PLATFORM_LABELS = {
     "youtube": "🎥 YouTube",
     "instagram": "📸 Instagram",

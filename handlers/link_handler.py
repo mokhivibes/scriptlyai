@@ -4,7 +4,7 @@ import os
 import uuid
 from urllib.parse import quote_plus
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import CopyTextButton, Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
 from utils.link_detector import extract_url, detect_platform
@@ -144,22 +144,16 @@ async def _delete_silently(message):
         logger.warning(f"Failed to delete message {getattr(message, 'message_id', '?')} - leaving it in place")
 
 
-async def send_copyable_result(message, header_parts, content: str):
+async def send_result_text(message, header_parts, content: str):
     """
-    Sends a transcript/translation/summary as one or more Telegram
-    messages, splitting at paragraph/sentence boundaries (never
-    mid-sentence) so it doesn't hit Telegram's per-message character
-    limit - and monospaced (MessageEntity.CODE) so a tap copies it in any
-    Telegram client. header_parts (e.g. msg.transcript_header_parts(lang))
-    is prepended to the first chunk only, in ONE message together with
-    that chunk, rather than as its own separate message.
+    Sends a transcript/translation/summary as plain text (selectable, not
+    monospaced), in one or more messages split at paragraph/sentence
+    boundaries so it stays under Telegram's per-message limit. header_parts
+    is prepended to the first chunk only, in the same message.
 
-    Entity-based, not parse_mode="Markdown", for the same reason as
-    elsewhere in this file: content is genuinely unpredictable (raw
-    transcript/AI output) and could contain characters a Markdown parser
-    would treat as syntax - entities apply formatting by position, so
-    nothing in content can affect the header's formatting or break the
-    message.
+    Entity-based, not parse_mode="Markdown": content is unpredictable (raw
+    transcript/AI output) and could contain Markdown syntax characters.
+    The copy button (see build_export_keyboard) handles one-tap copying.
     """
 
     chunks, _ = split_into_chunks(content, max_chars=TELEGRAM_MESSAGE_MAX_CHARS)
@@ -167,19 +161,32 @@ async def send_copyable_result(message, header_parts, content: str):
         chunks = [""]
 
     first_text, first_entities = build_bold_message(
-        list(header_parts) + [("\n\n", False), (chunks[0], CODE)]
+        list(header_parts) + [("\n\n", False), (chunks[0], False)]
     )
     await call_with_retry(message.reply_text, first_text, entities=first_entities)
 
     for chunk in chunks[1:]:
-        chunk_text, chunk_entities = build_bold_message([(chunk, CODE)])
-        await call_with_retry(message.reply_text, chunk_text, entities=chunk_entities)
+        await call_with_retry(message.reply_text, chunk)
 
 
-def build_export_keyboard(lang):
+# Telegram's native copy-to-clipboard button only accepts 1-256 characters.
+COPY_BUTTON_MAX_CHARS = 256
+
+
+def _copy_button(lang, copy_text):
+    """One-tap native copy for short text; longer text falls back to a
+    callback that re-sends it as tap-to-copy monospace messages."""
+    label = msg.t(lang, "COPY_BUTTON")
+    if copy_text and len(copy_text) <= COPY_BUTTON_MAX_CHARS:
+        return InlineKeyboardButton(label, copy_text=CopyTextButton(text=copy_text))
+    return InlineKeyboardButton(label, callback_data="copy_text")
+
+
+def build_export_keyboard(lang, copy_text=None):
     keyboard = [[
         InlineKeyboardButton(msg.t(lang, "EXPORT_PDF_BUTTON"), callback_data="export_pdf"),
         InlineKeyboardButton(msg.t(lang, "EXPORT_TXT_BUTTON"), callback_data="export_txt"),
+        _copy_button(lang, copy_text),
     ]]
 
     # Second row - Translate + Summarize side by side while translation is
@@ -196,7 +203,7 @@ def build_export_keyboard(lang):
     return InlineKeyboardMarkup(keyboard)
 
 
-def build_save_keyboard(lang):
+def build_save_keyboard(lang, copy_text=None):
     """
     A smaller export-only keyboard (no Translate/Summary) shown after a
     translation or summary - Translate/Summary always operate on the
@@ -212,6 +219,7 @@ def build_save_keyboard(lang):
         [
             InlineKeyboardButton(msg.t(lang, "EXPORT_PDF_BUTTON"), callback_data="export_pdf"),
             InlineKeyboardButton(msg.t(lang, "EXPORT_TXT_BUTTON"), callback_data="export_txt"),
+            _copy_button(lang, copy_text),
         ],
     ]
     return InlineKeyboardMarkup(keyboard)
@@ -685,12 +693,12 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
         )
 
         await call_with_retry(message.reply_sticker, STICKER_DONE)
-        await send_copyable_result(message, msg.transcript_header_parts(lang), cleaned_transcript)
+        await send_result_text(message, msg.transcript_header_parts(lang), cleaned_transcript)
 
         await call_with_retry(
             message.reply_text,
             msg.t(lang, "NEXT_ACTIONS_PROMPT"),
-            reply_markup=build_export_keyboard(lang)
+            reply_markup=build_export_keyboard(lang, cleaned_transcript)
         )
 
         # The processing sticker and the "cleaning up..." status line have
@@ -770,6 +778,12 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         await _handle_cancel_long_content(query, context, lang)
         return
 
+    # Copy is a cheap re-send of text already in memory (no pipeline work),
+    # so like confirm/cancel above it skips the busy-guard.
+    if data == "copy_text":
+        await _handle_copy(query, context, lang)
+        return
+
     if _is_busy(context):
         await call_with_retry(query.message.reply_text, msg.t(lang, "STILL_WORKING"), parse_mode="Markdown")
         return
@@ -798,6 +812,24 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             await _handle_history_select(query, context, lang, data.replace("history_", ""))
     finally:
         _mark_free(context)
+
+
+async def _handle_copy(query, context, lang):
+    """Re-sends whatever is currently on screen as monospace (tap-to-copy)
+    messages - the fallback for text too long for Telegram's native copy button."""
+
+    text = context.user_data.get("export_text") or context.user_data.get("last_transcript")
+    if not text:
+        await call_with_retry(query.message.reply_text, msg.t(lang, "NO_TRANSCRIPT_SAVED"), parse_mode="Markdown")
+        return
+
+    chunks, _ = split_into_chunks(text, max_chars=TELEGRAM_MESSAGE_MAX_CHARS)
+    hint = msg.t(lang, "COPY_HINT")
+
+    for index, chunk in enumerate(chunks):
+        parts = [(hint, False), ("\n\n", False)] if index == 0 else []
+        copy_text, copy_entities = build_bold_message(parts + [(chunk, CODE)])
+        await call_with_retry(query.message.reply_text, copy_text, entities=copy_entities)
 
 
 async def _handle_confirm_long_content(query, context, lang):
@@ -882,7 +914,7 @@ async def _handle_export(query, context, lang, data):
             query.message.reply_text,
             msg.t(lang, "EXPORT_FAILED"),
             parse_mode="Markdown",
-            reply_markup=build_save_keyboard(lang),
+            reply_markup=build_save_keyboard(lang, transcript),
         )
 
     finally:
@@ -928,12 +960,12 @@ async def _handle_translate_to(query, context, lang, target_code):
 
     try:
         translated = await asyncio.to_thread(translate_text, transcript, target_code, detected_language)
-        await send_copyable_result(query.message, msg.translation_header_parts(lang), translated)
+        await send_result_text(query.message, msg.translation_header_parts(lang), translated)
         # "Translating..." has been superseded by the result just sent -
         # delete it now that it's actually landed, rather than leaving it
         # as a stale status line. Deleted only AFTER a successful send (not
         # before) so the except block below still has a live message to
-        # edit into TRANSLATION_FAILED if send_copyable_result itself fails.
+        # edit into TRANSLATION_FAILED if send_result_text itself fails.
         await _delete_silently(status_message)
 
         # Now the translation (not the original) is what's on screen, so
@@ -947,7 +979,7 @@ async def _handle_translate_to(query, context, lang, target_code):
         await call_with_retry(
             query.message.reply_text,
             msg.t(lang, "EXPORT_PROMPT"),
-            reply_markup=build_save_keyboard(lang)
+            reply_markup=build_save_keyboard(lang, translated)
         )
     except Exception as error:
         logger.exception(f"Translation failed: {type(error).__name__}: {error}")
@@ -972,12 +1004,12 @@ async def _handle_summarize(query, context, lang):
 
     try:
         summary = await asyncio.to_thread(summarize_transcript, transcript)
-        await send_copyable_result(query.message, msg.summary_header_parts(lang), summary)
+        await send_result_text(query.message, msg.summary_header_parts(lang), summary)
         # "Summarizing..." has been superseded by the result just sent -
         # delete it now that it's actually landed (only after a successful
         # send, not before - see _handle_translate_to's identical comment
         # for why the except block below needs status_message to still
-        # exist if send_copyable_result itself fails).
+        # exist if send_result_text itself fails).
         await _delete_silently(status_message)
 
         # Now the summary (not the full transcript) is what's on screen -
@@ -990,7 +1022,7 @@ async def _handle_summarize(query, context, lang):
         await call_with_retry(
             query.message.reply_text,
             msg.t(lang, "EXPORT_PROMPT"),
-            reply_markup=build_save_keyboard(lang)
+            reply_markup=build_save_keyboard(lang, summary)
         )
     except Exception as error:
         logger.exception(f"Summarization failed: {type(error).__name__}: {error}")
@@ -1030,10 +1062,10 @@ async def _handle_history_select(query, context, lang, transcript_id_raw):
         query.message.reply_text, msg.history_selected_info(lang, title, platform, detected_language, short_date)
     )
 
-    await send_copyable_result(query.message, msg.transcript_header_parts(lang), transcript_text)
+    await send_result_text(query.message, msg.transcript_header_parts(lang), transcript_text)
 
     await call_with_retry(
         query.message.reply_text,
         msg.t(lang, "NEXT_ACTIONS_PROMPT"),
-        reply_markup=build_export_keyboard(lang)
+        reply_markup=build_export_keyboard(lang, transcript_text)
     )

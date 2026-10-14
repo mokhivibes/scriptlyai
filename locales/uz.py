@@ -260,6 +260,9 @@ FEEDBACK_USAGE = "💬 Fikringiz bormi yoki xato topdingizmi? Buyruq bilan birga
 FEEDBACK_THANKS = "🙏 Rahmat — fikringiz menga yetib keldi."
 FEEDBACK_TOO_SOON = "⏳ Yana fikr yuborishdan oldin bir daqiqa kuting."
 
+COPY_BUTTON = "📋 Nusxalash"
+COPY_HINT = "📋 Nusxalash uchun quyidagi matnga bosing."
+
 PLATFORM_LABELS = {
     "youtube": "🎥 YouTube",
     "instagram": "📸 Instagram",
