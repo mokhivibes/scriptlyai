@@ -25,7 +25,8 @@ _PLATFORM_LIST_PARTS = [
 _FEATURE_LIST_PARTS = [
     ("✍️ ", False), ("Transcribe", True), (" — turn what's said into clean, readable text\n", False),
     ("🔍 ", False), ("Summarize", True), (" — get the short version\n", False),
-    ("📄 ", False), ("Export", True), (" — save it as a PDF or text file", False),
+    ("📄 ", False), ("Export", True), (" — save it as a PDF or text file\n", False),
+    ("📋 ", False), ("Copy", True), (" — grab the text with one tap", False),
 ]
 
 LANGUAGE_CHANGED = (
@@ -89,6 +90,8 @@ HELP_TEXT_PARTS = [
     (" — start over\n", False),
     ("/privacy", True),
     (" — see what I store, and delete it\n", False),
+    ("/feedback", True),
+    (" — send me feedback or report a problem\n", False),
     ("/start", True),
     (" — say hi again", False),
 ]

@@ -19,7 +19,8 @@ _PLATFORM_LIST_PARTS = [
 _FEATURE_LIST_PARTS = [
     ("✍️ ", False), ("تفريغ نصي", True), (" — أحوّل ما يُقال إلى نص واضح ومرتب\n", False),
     ("🔍 ", False), ("تلخيص", True), (" — إذا أردت الخلاصة فقط\n", False),
-    ("📄 ", False), ("تصدير", True), (" — كملف PDF أو نصي", False),
+    ("📄 ", False), ("تصدير", True), (" — كملف PDF أو نصي\n", False),
+    ("📋 ", False), ("نسخ", True), (" — انسخ النص بنقرة واحدة", False),
 ]
 
 LANGUAGE_CHANGED = (
@@ -79,6 +80,8 @@ HELP_TEXT_PARTS = [
     (" — للبدء من جديد\n", False),
     ("/privacy", True),
     (" — ما أخزّنه وكيفية حذفه\n", False),
+    ("/feedback", True),
+    (" — أرسل ملاحظاتك أو أبلغ عن مشكلة\n", False),
     ("/start", True),
     (" — للترحيب من جديد", False),
 ]

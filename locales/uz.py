@@ -19,7 +19,8 @@ _PLATFORM_LIST_PARTS = [
 _FEATURE_LIST_PARTS = [
     ("✍️ ", False), ("Matnga aylantirish", True), (" — aytilganlarni toza, oʻqilishi oson matnga aylantiraman\n", False),
     ("🔍 ", False), ("Qisqartirish", True), (" — qisqacha versiyasi kerak boʻlsa\n", False),
-    ("📄 ", False), ("Eksport", True), (" — PDF yoki matn fayli sifatida", False),
+    ("📄 ", False), ("Eksport", True), (" — PDF yoki matn fayli sifatida\n", False),
+    ("📋 ", False), ("Nusxalash", True), (" — matnni bir bosishda nusxalang", False),
 ]
 
 LANGUAGE_CHANGED = (
@@ -78,6 +79,8 @@ HELP_TEXT_PARTS = [
     (" — bekor qilish va boshidan boshlash\n", False),
     ("/privacy", True),
     (" — nimalarni saqlayman va ularni qanday oʻchirish\n", False),
+    ("/feedback", True),
+    (" — fikr yuborish yoki muammo haqida xabar berish\n", False),
     ("/start", True),
     (" — yana salomlashish", False),
 ]
