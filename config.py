@@ -20,7 +20,7 @@ if not GROQ_API_KEY:
 # Relative to the project root, same as bot.db/downloads/logs - resolves
 # correctly under both manual `python main.py` and the launchd deployment,
 # since WorkingDirectory is set to the project root either way.
-LOGO_PATH = "assets/logo.png"
+LOGO_PATH = "assets/logo.jpg"
 
 # Optional - if set, the bot proactively DMs this Telegram user_id once
 # per day when total Groq usage (summed across every user, not just one)
