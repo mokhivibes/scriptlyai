@@ -12,6 +12,10 @@ DYNAMIC = object()
 # monospaced so a tap copies it.
 CODE = object()
 
+# Style sentinel: a bold segment inside a Telegram quote block - used for
+# the bot's @username signature under everything it sends.
+QUOTE_BOLD = object()
+
 
 def build_bold_message(parts):
     """
@@ -57,6 +61,9 @@ def build_bold_message(parts):
             entities.append(MessageEntity(type=MessageEntity.BOLD, offset=offset, length=length))
         elif style is CODE:
             entities.append(MessageEntity(type=MessageEntity.CODE, offset=offset, length=length))
+        elif style is QUOTE_BOLD:
+            entities.append(MessageEntity(type=MessageEntity.BLOCKQUOTE, offset=offset, length=length))
+            entities.append(MessageEntity(type=MessageEntity.BOLD, offset=offset, length=length))
         elif isinstance(style, str):
             entities.append(MessageEntity(
                 type=MessageEntity.CUSTOM_EMOJI, offset=offset, length=length, custom_emoji_id=style
@@ -65,6 +72,12 @@ def build_bold_message(parts):
         offset += length
 
     return text, entities
+
+
+def simple_markdown_parts(text):
+    """Turns developer-written text with *bold* markers into parts for
+    build_bold_message (only for controlled strings, never user content)."""
+    return [(segment, index % 2 == 1) for index, segment in enumerate(text.split("*")) if segment]
 
 
 def resolve_parts(parts, dynamic_value):

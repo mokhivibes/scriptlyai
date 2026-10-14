@@ -9,7 +9,7 @@ from telegram.ext import ContextTypes
 
 from utils.link_detector import extract_url, detect_platform
 from utils.text_chunker import split_into_chunks
-from utils.rich_text import CODE, build_bold_message
+from utils.rich_text import CODE, QUOTE_BOLD, build_bold_message, simple_markdown_parts
 from utils import messages as msg
 from services.youtube_service import download_youtube_video
 from services.twitter_service import download_twitter_video
@@ -48,8 +48,8 @@ EXPORT_DIR = "downloads"
 
 LYRICS_SEARCH_MAX_CHARS = 80
 
-# For parse_mode="Markdown" captions, where a bare "_" in the handle would start italics.
-MARKDOWN_BRAND_LINE = "\n" + BOT_USERNAME.replace("_", "\\_")
+# Signature under everything sent: a blank line, then the handle bold in a quote block.
+BRAND_FOOTER_PARTS = [("\n\n", False), (BOT_USERNAME, QUOTE_BOLD)]
 
 # Telegram's standard Bot API refuses getFile for anything bigger than
 # this; going higher needs a self-hosted local Bot API server.
@@ -163,15 +163,24 @@ async def send_result_text(message, header_parts, content: str):
     chunks, _ = split_into_chunks(content, max_chars=TELEGRAM_MESSAGE_MAX_CHARS)
     if not chunks:
         chunks = [""]
-    chunks[-1] += f"\n\n— {BOT_USERNAME}"
 
-    first_text, first_entities = build_bold_message(
-        list(header_parts) + [("\n\n", False), (chunks[0], False)]
-    )
-    await call_with_retry(message.reply_text, first_text, entities=first_entities)
+    for index, chunk in enumerate(chunks):
+        parts = []
+        if index == 0:
+            parts += list(header_parts) + [("\n\n", False)]
+        parts.append((chunk, False))
+        if index == len(chunks) - 1:
+            parts += BRAND_FOOTER_PARTS
 
-    for chunk in chunks[1:]:
-        await call_with_retry(message.reply_text, chunk)
+        chunk_text, chunk_entities = build_bold_message(parts)
+        await call_with_retry(message.reply_text, chunk_text, entities=chunk_entities)
+
+
+def _caption_kwargs(caption_markdown: str):
+    """caption + caption_entities for a developer-written caption (*bold*
+    markers) with the bot signature appended."""
+    text, entities = build_bold_message(simple_markdown_parts(caption_markdown) + BRAND_FOOTER_PARTS)
+    return {"caption": text, "caption_entities": entities}
 
 
 # Telegram's native copy-to-clipboard button only accepts 1-256 characters.
@@ -646,7 +655,7 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
                     message.reply_audio,
                     audio=audio_file,
                     filename=os.path.basename(audio_path),
-                    caption=f"{msg.t(lang, 'AUDIO_CAPTION')}\n{BOT_USERNAME}"
+                    **_caption_kwargs(msg.t(lang, "AUDIO_CAPTION"))
                 )
 
         await call_with_retry(status_message.edit_text, msg.transcribing_message(lang), parse_mode="Markdown")
@@ -923,17 +932,17 @@ async def _handle_export(query, context, lang, data):
             # it must match the TRANSCRIPT's own spoken language, not the
             # bot's interface language.
             await asyncio.to_thread(export_to_pdf, transcript, filepath, language_code=detected_language)
-            caption = msg.export_ready_caption(lang, "pdf") + MARKDOWN_BRAND_LINE
+            caption = msg.export_ready_caption(lang, "pdf")
         else:
             filepath = os.path.join(EXPORT_DIR, f"transcript_{unique_id}.txt")
             await asyncio.to_thread(export_to_text, transcript, filepath)
-            caption = msg.export_ready_caption(lang, "text") + MARKDOWN_BRAND_LINE
+            caption = msg.export_ready_caption(lang, "text")
 
         # caption's {file_format} comes from a fixed dict ("PDF"/"text
         # file"), never from the transcript content itself - safe.
         with open(filepath, "rb") as document_file:
             await call_with_retry(
-                query.message.reply_document, document=document_file, caption=caption, parse_mode="Markdown"
+                query.message.reply_document, document=document_file, **_caption_kwargs(caption)
             )
 
     except Exception as error:
