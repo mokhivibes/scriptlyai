@@ -254,6 +254,22 @@ def increment_daily_usage(user_id):
     connection.close()
 
 
+def decrement_daily_usage(user_id):
+    """Gives back one run (never below 0) - used when a run produced nothing
+    (no speech detected), so the user isn't charged for it."""
+
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    cursor.execute("""
+        UPDATE daily_usage SET request_count = MAX(request_count - 1, 0)
+        WHERE user_id = ? AND usage_date = date('now')
+    """, (user_id,))
+
+    connection.commit()
+    connection.close()
+
+
 def get_total_usage_today():
     """Sum of every user's pipeline runs today (UTC) - the number that
     actually matters against Groq's shared free-tier daily cap, unlike

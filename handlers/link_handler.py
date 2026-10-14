@@ -26,6 +26,7 @@ from database import (
     get_interface_language,
     get_daily_usage_count,
     increment_daily_usage,
+    decrement_daily_usage,
     get_total_usage_today,
     has_sent_capacity_alert_today,
     mark_capacity_alert_sent,
@@ -683,6 +684,7 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
         )
 
         if not transcript.strip():
+            decrement_daily_usage(user_id)
             raise ValueError("No speech detected in this audio.")
 
         logger.info(f"Detected language: {detected_language}")
