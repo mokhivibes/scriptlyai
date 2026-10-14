@@ -256,8 +256,8 @@ LYRICS_HINT = "\n\n🎤 إذا كان هذا اسم أغنية، اضغط أدن
 LYRICS_BUTTON = "🎤 ابحث عن الكلمات"
 
 # Bot profile texts (shown on the bot's page / before /start) and /feedback.
-BOT_DESCRIPTION = "أحوّل أي فيديو أو رسالة صوتية أو ملف صوتي إلى نص نظيف وسهل القراءة. أرسل رابط YouTube أو Instagram أو TikTok أو Facebook أو X — أو رسالة صوتية أو ملف صوت أو فيديو (حتى 20 ميجابايت) — واحصل على نص منسّق وملخص قصير وملف PDF أو نصي. أعمل بالإنجليزية والروسية والعربية والأوزبكية."
-BOT_SHORT_DESCRIPTION = "فيديو وصوت ← نص نظيف وملخصات وPDF. YouTube وInstagram وTikTok وX وFacebook."
+BOT_DESCRIPTION = "أرسل رابطاً أو ملفاً واحصل على نص نظيف. 🎬 الصق رابط YouTube أو Instagram أو TikTok أو Facebook أو X — أو أرسل رسالة صوتية أو ملف صوت أو فيديو (حتى 20 ميجابايت). ✍️ أفرّغه وأرتّبه وأعطيك ملخصاً قصيراً ونسخاً بنقرة واحدة أو ملف PDF أو نصي. 🌍 أتحدث English وРусский والعربية وOʻzbekcha. اضغط Start للبدء."
+BOT_SHORT_DESCRIPTION = "حوّل الفيديو والرسائل الصوتية والصوت إلى نص نظيف في ثوانٍ. ملخصات وتصدير PDF وأربع لغات."
 FEEDBACK_USAGE = "💬 لديك ملاحظة أو وجدت خطأ؟ أرسلها مع الأمر، مثل:\n/feedback ملف PDF قطع آخر سطر"
 FEEDBACK_THANKS = "🙏 شكراً — وصلتني ملاحظتك."
 FEEDBACK_TOO_SOON = "⏳ انتظر دقيقة قبل إرسال ملاحظة أخرى."
