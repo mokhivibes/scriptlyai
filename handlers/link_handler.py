@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 import uuid
+from urllib.parse import quote_plus
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
@@ -43,6 +44,8 @@ logger = logging.getLogger(__name__)
 TELEGRAM_MESSAGE_MAX_CHARS = 4000
 
 EXPORT_DIR = "downloads"
+
+LYRICS_SEARCH_MAX_CHARS = 80
 
 # Telegram's standard Bot API refuses getFile for anything bigger than
 # this; going higher needs a self-hosted local Bot API server.
@@ -368,8 +371,19 @@ async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
     url = extract_url(text)
 
     if not url:
-        no_link_text, no_link_entities = msg.no_link_found_text(lang)
-        await call_with_retry(update.message.reply_text, no_link_text, entities=no_link_entities)
+        query = text.strip()
+        # A short non-link message is most likely a song name: offer a web
+        # search link (never the lyrics themselves - copyrighted, and no
+        # free licensed source exists). Longer text just gets the usual hint.
+        looks_like_song_name = 0 < len(query) <= LYRICS_SEARCH_MAX_CHARS
+        no_link_text, no_link_entities = msg.no_link_found_text(lang, with_lyrics_hint=looks_like_song_name)
+        reply_markup = None
+        if looks_like_song_name:
+            search_url = "https://www.google.com/search?q=" + quote_plus(f"{query} lyrics")
+            reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton(msg.t(lang, "LYRICS_BUTTON"), url=search_url)]])
+        await call_with_retry(
+            update.message.reply_text, no_link_text, entities=no_link_entities, reply_markup=reply_markup
+        )
         return
 
     platform = detect_platform(url)

@@ -248,6 +248,10 @@ FILE_TOO_BIG_TO_DOWNLOAD = (
     "_أرسل ملفاً أصغر أو أرسل رابطه بدلاً من ذلك._"
 )
 
+# Shown with a web-search button when a SHORT non-link text arrives (likely a song name).
+LYRICS_HINT = "\n\n🎤 إذا كان هذا اسم أغنية، اضغط أدناه للبحث عن كلماتها."
+LYRICS_BUTTON = "🎤 ابحث عن الكلمات"
+
 PLATFORM_LABELS = {
     "youtube": "🎥 YouTube",
     "instagram": "📸 Instagram",

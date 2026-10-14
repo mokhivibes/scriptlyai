@@ -249,6 +249,10 @@ FILE_TOO_BIG_TO_DOWNLOAD = (
     "_Kichikroq fayl yoki uning havolasini yuboring._"
 )
 
+# Shown with a web-search button when a SHORT non-link text arrives (likely a song name).
+LYRICS_HINT = "\n\n🎤 Agar bu qoʻshiq nomi boʻlsa, matnini topish uchun pastdagi tugmani bosing."
+LYRICS_BUTTON = "🎤 Qoʻshiq matnini topish"
+
 PLATFORM_LABELS = {
     "youtube": "🎥 YouTube",
     "instagram": "📸 Instagram",

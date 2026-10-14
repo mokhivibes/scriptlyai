@@ -141,9 +141,12 @@ def help_text(lang):
     return build_bold_message(_locale(lang).HELP_TEXT_PARTS)
 
 
-def no_link_found_text(lang):
+def no_link_found_text(lang, with_lyrics_hint=False):
     """Returns (text, entities) - see help_text() above for why."""
-    return build_bold_message(_locale(lang).NO_LINK_FOUND_PARTS)
+    parts = list(_locale(lang).NO_LINK_FOUND_PARTS)
+    if with_lyrics_hint:
+        parts.append((_locale(lang).LYRICS_HINT, False))
+    return build_bold_message(parts)
 
 
 def unrecognized_link_text(lang):
