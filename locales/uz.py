@@ -253,6 +253,13 @@ FILE_TOO_BIG_TO_DOWNLOAD = (
 LYRICS_HINT = "\n\n🎤 Agar bu qoʻshiq nomi boʻlsa, matnini topish uchun pastdagi tugmani bosing."
 LYRICS_BUTTON = "🎤 Qoʻshiq matnini topish"
 
+# Bot profile texts (shown on the bot's page / before /start) and /feedback.
+BOT_DESCRIPTION = "Istalgan video, ovozli xabar yoki audioni toza, oʻqishga qulay matnga aylantiraman. YouTube, Instagram, TikTok, Facebook yoki X havolasini — yoki ovozli xabar, audio yoki video faylni (20 MB gacha) — yuboring va tartibli matn, qisqa xulosa hamda PDF yoki matn faylini oling. Ingliz, rus, arab va oʻzbek tillarida ishlayman."
+BOT_SHORT_DESCRIPTION = "Video, ovoz va audio → toza matn, xulosa va PDF. YouTube, Instagram, TikTok, X, Facebook."
+FEEDBACK_USAGE = "💬 Fikringiz bormi yoki xato topdingizmi? Buyruq bilan birga yuboring, masalan:\n/feedback PDF oxirgi qatorni kesib tashladi"
+FEEDBACK_THANKS = "🙏 Rahmat — fikringiz menga yetib keldi."
+FEEDBACK_TOO_SOON = "⏳ Yana fikr yuborishdan oldin bir daqiqa kuting."
+
 PLATFORM_LABELS = {
     "youtube": "🎥 YouTube",
     "instagram": "📸 Instagram",
@@ -287,4 +294,5 @@ COMMAND_DESCRIPTIONS = {
     "history": "Oldingi matnlarni koʻrish",
     "language": "Tilni oʻzgartirish",
     "privacy": "Nimalarni saqlayman va qanday oʻchirish",
+    "feedback": "Fikr yuborish yoki muammo haqida xabar berish",
 }

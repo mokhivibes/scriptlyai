@@ -299,6 +299,13 @@ FILE_TOO_BIG_TO_DOWNLOAD = (
 LYRICS_HINT = "\n\n🎤 If that was a song name, tap below to find its lyrics."
 LYRICS_BUTTON = "🎤 Find lyrics"
 
+# Bot profile texts (shown on the bot's page / before /start) and /feedback.
+BOT_DESCRIPTION = "Turn any video, voice note or audio into clean, readable text. Send a YouTube, Instagram, TikTok, Facebook or X link — or a voice message, audio or video file (up to 20 MB) — and get a tidy transcript, a short summary, and a PDF or text file. Works in English, Русский, العربية and Oʻzbekcha."
+BOT_SHORT_DESCRIPTION = "Video, voice & audio → clean text, summaries and PDFs. YouTube, Instagram, TikTok, X, Facebook."
+FEEDBACK_USAGE = "💬 Got feedback or found a bug? Send it along with the command, like:\n/feedback the PDF cut off my last line"
+FEEDBACK_THANKS = "🙏 Thanks — your feedback reached me."
+FEEDBACK_TOO_SOON = "⏳ Please wait a minute before sending more feedback."
+
 PLATFORM_LABELS = {
     "youtube": "🎥 YouTube",
     "instagram": "📸 Instagram",
@@ -338,4 +345,5 @@ COMMAND_DESCRIPTIONS = {
     "history": "Revisit past transcripts",
     "language": "Change how I talk to you",
     "privacy": "See what I store, and delete it",
+    "feedback": "Send feedback or report a problem",
 }

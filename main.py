@@ -23,6 +23,7 @@ from handlers.command_handler import (
     build_language_picker_keyboard,
     build_shortcuts_keyboard,
     privacy_command,
+    feedback_command,
     request_delete_data_callback,
     confirm_delete_data_callback,
     cancel_delete_data_callback,
@@ -64,6 +65,15 @@ async def post_init(application: Application):
         for command, description in msg.command_descriptions(msg.DEFAULT_LANGUAGE)
     ]
     await application.bot.set_my_commands(default_commands)
+
+    # Profile texts: the long description shows on the empty-chat screen
+    # before /start, the short one on the bot's profile page and in share
+    # previews. Same per-language + default-fallback pattern as the commands.
+    for lang in msg.SUPPORTED_LANGUAGES:
+        await application.bot.set_my_description(msg.t(lang, "BOT_DESCRIPTION"), language_code=lang)
+        await application.bot.set_my_short_description(msg.t(lang, "BOT_SHORT_DESCRIPTION"), language_code=lang)
+    await application.bot.set_my_description(msg.t(msg.DEFAULT_LANGUAGE, "BOT_DESCRIPTION"))
+    await application.bot.set_my_short_description(msg.t(msg.DEFAULT_LANGUAGE, "BOT_SHORT_DESCRIPTION"))
 
     await application.bot.set_chat_menu_button(menu_button=MenuButtonCommands())
 
@@ -167,6 +177,7 @@ def main():
     application.add_handler(CommandHandler("history", history_command))
     application.add_handler(CommandHandler("language", language_command))
     application.add_handler(CommandHandler("privacy", privacy_command))
+    application.add_handler(CommandHandler("feedback", feedback_command))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_link))
     # Anything else a user might send directly (voice note, video file,
     # photo, document, sticker) - previously unhandled entirely, meaning

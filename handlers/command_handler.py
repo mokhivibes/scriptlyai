@@ -1,3 +1,5 @@
+import time
+
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
@@ -5,8 +7,11 @@ from database import get_transcripts_for_user, get_interface_language, set_inter
 from utils import messages as msg
 from utils.network_retry import call_with_retry
 from utils.stickers import STICKER_WELCOME
+from config import OWNER_USER_ID
 
 HISTORY_LIMIT = 10
+FEEDBACK_MAX_CHARS = 1000
+FEEDBACK_COOLDOWN_SECONDS = 60
 
 
 def _lang(user_id) -> str:
@@ -208,3 +213,33 @@ async def cancel_delete_data_callback(update: Update, context: ContextTypes.DEFA
     lang = _lang(query.from_user.id)
 
     await call_with_retry(query.message.reply_text, msg.t(lang, "DELETE_DATA_CANCELLED"), parse_mode="Markdown")
+
+
+async def feedback_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """/feedback <text> - relays the message to the owner. Plain text both
+    ways (no parse_mode): the content is user-controlled."""
+
+    user = update.effective_user
+    lang = _lang(user.id)
+    text = " ".join(context.args or []).strip()
+
+    if not text:
+        await call_with_retry(update.message.reply_text, msg.t(lang, "FEEDBACK_USAGE"))
+        return
+
+    now = time.time()
+    if now - context.user_data.get("last_feedback_at", 0) < FEEDBACK_COOLDOWN_SECONDS:
+        await call_with_retry(update.message.reply_text, msg.t(lang, "FEEDBACK_TOO_SOON"))
+        return
+
+    context.user_data["last_feedback_at"] = now
+
+    if OWNER_USER_ID:
+        handle = f"@{user.username}" if user.username else "no username"
+        await call_with_retry(
+            context.bot.send_message,
+            chat_id=OWNER_USER_ID,
+            text=f"💬 Feedback from {user.first_name} ({handle}, id {user.id}, lang {lang}):\n\n{text[:FEEDBACK_MAX_CHARS]}",
+        )
+
+    await call_with_retry(update.message.reply_text, msg.t(lang, "FEEDBACK_THANKS"))

@@ -257,6 +257,13 @@ FILE_TOO_BIG_TO_DOWNLOAD = (
 LYRICS_HINT = "\n\n🎤 Если это название песни, нажми ниже, чтобы найти текст."
 LYRICS_BUTTON = "🎤 Найти текст песни"
 
+# Bot profile texts (shown on the bot's page / before /start) and /feedback.
+BOT_DESCRIPTION = "Превращаю любое видео, голосовое сообщение или аудио в чистый читаемый текст. Пришли ссылку на YouTube, Instagram, TikTok, Facebook или X — либо голосовое, аудио- или видеофайл (до 20 МБ) — и получи аккуратную расшифровку, краткое резюме и файл PDF или текст. Работаю на английском, русском, арабском и узбекском."
+BOT_SHORT_DESCRIPTION = "Видео, голосовые и аудио → чистый текст, резюме и PDF. YouTube, Instagram, TikTok, X, Facebook."
+FEEDBACK_USAGE = "💬 Есть отзыв или нашёл ошибку? Отправь его вместе с командой, например:\n/feedback PDF обрезал последнюю строку"
+FEEDBACK_THANKS = "🙏 Спасибо — твой отзыв дошёл до меня."
+FEEDBACK_TOO_SOON = "⏳ Подожди минуту, прежде чем отправлять ещё один отзыв."
+
 PLATFORM_LABELS = {
     "youtube": "🎥 YouTube",
     "instagram": "📸 Instagram",
@@ -291,4 +298,5 @@ COMMAND_DESCRIPTIONS = {
     "history": "Прошлые расшифровки",
     "language": "Сменить язык общения",
     "privacy": "Что я храню и как удалить это",
+    "feedback": "Отправить отзыв или сообщить о проблеме",
 }

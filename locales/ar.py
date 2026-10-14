@@ -252,6 +252,13 @@ FILE_TOO_BIG_TO_DOWNLOAD = (
 LYRICS_HINT = "\n\n🎤 إذا كان هذا اسم أغنية، اضغط أدناه للبحث عن كلماتها."
 LYRICS_BUTTON = "🎤 ابحث عن الكلمات"
 
+# Bot profile texts (shown on the bot's page / before /start) and /feedback.
+BOT_DESCRIPTION = "أحوّل أي فيديو أو رسالة صوتية أو ملف صوتي إلى نص نظيف وسهل القراءة. أرسل رابط YouTube أو Instagram أو TikTok أو Facebook أو X — أو رسالة صوتية أو ملف صوت أو فيديو (حتى 20 ميجابايت) — واحصل على نص منسّق وملخص قصير وملف PDF أو نصي. أعمل بالإنجليزية والروسية والعربية والأوزبكية."
+BOT_SHORT_DESCRIPTION = "فيديو وصوت ← نص نظيف وملخصات وPDF. YouTube وInstagram وTikTok وX وFacebook."
+FEEDBACK_USAGE = "💬 لديك ملاحظة أو وجدت خطأ؟ أرسلها مع الأمر، مثل:\n/feedback ملف PDF قطع آخر سطر"
+FEEDBACK_THANKS = "🙏 شكراً — وصلتني ملاحظتك."
+FEEDBACK_TOO_SOON = "⏳ انتظر دقيقة قبل إرسال ملاحظة أخرى."
+
 PLATFORM_LABELS = {
     "youtube": "🎥 YouTube",
     "instagram": "📸 Instagram",
@@ -289,4 +296,5 @@ COMMAND_DESCRIPTIONS = {
     "history": "مراجعة النصوص السابقة",
     "language": "تغيير لغة المحادثة",
     "privacy": "ما أخزّنه وكيفية حذفه",
+    "feedback": "أرسل ملاحظاتك أو أبلغ عن مشكلة",
 }
