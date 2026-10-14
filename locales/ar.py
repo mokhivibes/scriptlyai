@@ -157,9 +157,9 @@ UNRECOGNIZED_LINK_PARTS = [
     (" — جرّب أحدها.", False),
 ]
 UNSUPPORTED_MESSAGE_PARTS = [
-    ("أعمل بالروابط، وليس بالملفات المُرسلة مباشرة — أرسل لي رابط ", False),
+    ("لا أستطيع التعامل مع هذا النوع من الملفات. أرسل لي رسالة صوتية أو ملف صوت أو فيديو (حتى 20 ميجابايت)، أو رابط ", False),
     *_PLATFORM_LIST_PARTS,
-    (" بدلاً من ذلك.", False),
+    (".", False),
 ]
 
 ERROR_PRIVATE = (
@@ -241,12 +241,20 @@ HISTORY_EMPTY_PARTS = [
 ]
 HISTORY_NOT_FOUND = "📜 لم أتمكن من العثور على هذا بعد الآن — ربما قديم جداً أو تم حذفه. _جرّب /history مرة أخرى._"
 
+# Direct file uploads (voice note / audio / video sent straight to the bot).
+DOWNLOADING_FILE = "📥 *جارٍ استلام ملفك…* _لحظات من فضلك._"
+FILE_TOO_BIG_TO_DOWNLOAD = (
+    "📦 هذا الملف *أكبر من 20 ميجابايت*، ولا يسمح لي تيليجرام بتنزيل ملفات بهذا الحجم. "
+    "_أرسل ملفاً أصغر أو أرسل رابطه بدلاً من ذلك._"
+)
+
 PLATFORM_LABELS = {
     "youtube": "🎥 YouTube",
     "instagram": "📸 Instagram",
     "twitter": "✖️ X/Twitter",
     "tiktok": "🎵 TikTok",
     "facebook": "📘 فيسبوك",
+    "upload": "📎 ملف",
 }
 
 TARGET_LANGUAGE_NAMES = {

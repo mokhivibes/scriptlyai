@@ -44,6 +44,10 @@ TELEGRAM_MESSAGE_MAX_CHARS = 4000
 
 EXPORT_DIR = "downloads"
 
+# Telegram's standard Bot API refuses getFile for anything bigger than
+# this; going higher needs a self-hosted local Bot API server.
+TELEGRAM_BOT_DOWNLOAD_LIMIT_BYTES = 20 * 1024 * 1024
+
 # Above this, show a confirm/cancel warning before committing to the full
 # pipeline instead of silently making someone wait - a full song can take
 # 5+ minutes to transcribe, and results are less reliable for music/singing
@@ -431,7 +435,36 @@ async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await call_with_retry(update.message.reply_text, unrecognized_text, entities=unrecognized_entities)
 
 
-async def _process_link(message, context, url, platform, platform_name, lang, user_id):
+async def handle_media_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    A voice note, audio file, video, video note, or audio/video document
+    sent straight to the bot - fed into the same _process_link pipeline as
+    a pasted link, just with Telegram as the "download" source.
+    """
+
+    message = update.message
+    if not message:
+        return
+
+    lang = _lang(update.effective_user.id)
+
+    if _is_busy(context):
+        await call_with_retry(message.reply_text, msg.t(lang, "STILL_WORKING"), parse_mode="Markdown")
+        return
+
+    attachment = message.voice or message.audio or message.video or message.video_note or message.document
+
+    if attachment.file_size and attachment.file_size > TELEGRAM_BOT_DOWNLOAD_LIMIT_BYTES:
+        await call_with_retry(message.reply_text, msg.t(lang, "FILE_TOO_BIG_TO_DOWNLOAD"), parse_mode="Markdown")
+        return
+
+    _mark_busy(context)
+
+    upload = {"file_id": attachment.file_id, "title": getattr(attachment, "file_name", None)}
+    await _process_link(message, context, None, "upload", "File", lang, update.effective_user.id, upload=upload)
+
+
+async def _process_link(message, context, url, platform, platform_name, lang, user_id, upload=None):
     """
     Runs the actual download -> extract -> transcribe -> clean -> export
     pipeline. Called either immediately (short content) or from the
@@ -476,10 +509,15 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
     # filling up with transient "still working on it" messages.
     # downloading_message returns (text, entities) - see its docstring
     # for why (branded platform icon via custom emoji entity).
-    downloading_text, downloading_entities = msg.downloading_message(lang, platform, platform_name)
-    status_message = await call_with_retry(
-        message.reply_text, downloading_text, entities=downloading_entities
-    )
+    if upload:
+        status_message = await call_with_retry(
+            message.reply_text, msg.t(lang, "DOWNLOADING_FILE"), parse_mode="Markdown"
+        )
+    else:
+        downloading_text, downloading_entities = msg.downloading_message(lang, platform, platform_name)
+        status_message = await call_with_retry(
+            message.reply_text, downloading_text, entities=downloading_entities
+        )
 
     try:
         # download_*/extract_audio/transcribe_audio/clean_transcript are
@@ -494,7 +532,16 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
         # utils/network_retry.py for why both layers exist and how
         # permanent failures (private/deleted video) are told apart from
         # transient ones.
-        if platform == "youtube":
+        if upload:
+            # ".upload" (not the real extension) so extract_audio's output
+            # <name>.mp3 can never collide with the source when a user
+            # sends an .mp3 - ffmpeg detects the format from content anyway.
+            video_path = os.path.join(EXPORT_DIR, f"upload_{uuid.uuid4().hex}.upload")
+            telegram_file = await call_with_retry(context.bot.get_file, upload["file_id"])
+            await call_with_retry(telegram_file.download_to_drive, video_path)
+            video_title = upload["title"]
+
+        elif platform == "youtube":
             video_path, video_title = await asyncio.to_thread(
                 call_sync_with_retry, download_youtube_video, url
             )
@@ -549,13 +596,14 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
 
         logger.info(f"Audio extracted: {audio_path}")
 
-        with open(audio_path, "rb") as audio_file:
-            await call_with_retry(
-                message.reply_audio,
-                audio=audio_file,
-                filename=os.path.basename(audio_path),
-                caption=msg.t(lang, "AUDIO_CAPTION")
-            )
+        if not upload:
+            with open(audio_path, "rb") as audio_file:
+                await call_with_retry(
+                    message.reply_audio,
+                    audio=audio_file,
+                    filename=os.path.basename(audio_path),
+                    caption=msg.t(lang, "AUDIO_CAPTION")
+                )
 
         await call_with_retry(status_message.edit_text, msg.transcribing_message(lang), parse_mode="Markdown")
 
@@ -658,6 +706,8 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
             error_reply_text = msg.t(lang, "ERROR_TIMEOUT")
         elif "networkerror" in error_name.lower() or "readerror" in error_name.lower():
             error_reply_text = msg.t(lang, "ERROR_NETWORK")
+        elif upload and "too big" in error_text:
+            error_reply_text = msg.t(lang, "FILE_TOO_BIG_TO_DOWNLOAD")
         elif "too large" in error_text or "entity too large" in error_text:
             error_reply_text = msg.t(lang, "ERROR_TOO_LARGE")
         elif "429" in error_text or "too many requests" in error_text or "rate limit" in error_text:

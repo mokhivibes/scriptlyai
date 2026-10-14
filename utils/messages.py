@@ -12,7 +12,7 @@ _LOCALES = {code: import_module(f"locales.{code}") for code in SUPPORTED_LANGUAG
 
 # Platform brand names aren't translated (standard localization practice),
 # so their emoji-only lookup for history labels stays global too.
-PLATFORM_EMOJIS = {"youtube": "🎥", "instagram": "📸", "twitter": "✖️", "tiktok": "🎵", "facebook": "📘"}
+PLATFORM_EMOJIS = {"youtube": "🎥", "instagram": "📸", "twitter": "✖️", "tiktok": "🎵", "facebook": "📘", "upload": "📎"}
 
 # Flags shown on the interface-language picker.
 LANGUAGE_FLAGS = {"uz": "🇺🇿", "en": "🇬🇧", "ru": "🇷🇺", "ar": "🇸🇦"}

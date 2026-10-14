@@ -156,8 +156,7 @@ UNRECOGNIZED_LINK_PARTS = [
     (" havolalari bilan ishlayman — shulardan birini sinab koʻring.", False),
 ]
 UNSUPPORTED_MESSAGE_PARTS = [
-    ("Men havolalar bilan ishlayman, toʻg'ridan-toʻg'ri fayllar bilan emas — "
-     "menga ", False),
+    ("Bunday fayl bilan ishlay olmayman. Menga ovozli xabar, audio yoki video fayl (20 MB gacha) yoki ", False),
     *_PLATFORM_LIST_PARTS,
     (" havolasini yuboring.", False),
 ]
@@ -243,12 +242,20 @@ HISTORY_EMPTY_PARTS = [
 ]
 HISTORY_NOT_FOUND = "📜 Buni topa olmadim — balki juda eski yoki oʻchirilgan boʻlishi mumkin. _/history buyrugʻini yana sinab koʻring._"
 
+# Direct file uploads (voice note / audio / video sent straight to the bot).
+DOWNLOADING_FILE = "📥 *Faylingizni olyapman…* _bir lahza._"
+FILE_TOO_BIG_TO_DOWNLOAD = (
+    "📦 Bu fayl *20 MB dan katta*, Telegram menga bunday katta fayllarni yuklab olishga ruxsat bermaydi. "
+    "_Kichikroq fayl yoki uning havolasini yuboring._"
+)
+
 PLATFORM_LABELS = {
     "youtube": "🎥 YouTube",
     "instagram": "📸 Instagram",
     "twitter": "✖️ X/Twitter",
     "tiktok": "🎵 TikTok",
     "facebook": "📘 Facebook",
+    "upload": "📎 Fayl",
 }
 
 TARGET_LANGUAGE_NAMES = {

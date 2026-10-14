@@ -13,7 +13,7 @@ from telegram.ext import (
 from logging_config import setup_logging
 from config import BOT_TOKEN
 from database import init_database, add_user, get_interface_language
-from handlers.link_handler import handle_link, handle_callback_query, handle_unsupported_message
+from handlers.link_handler import handle_link, handle_callback_query, handle_unsupported_message, handle_media_file
 from handlers.command_handler import (
     help_command,
     cancel_command,
@@ -173,8 +173,12 @@ def main():
     # complete silence for a very natural mistake a transcription bot's
     # users could make (attaching media instead of pasting a link).
     application.add_handler(MessageHandler(
-        filters.PHOTO | filters.VIDEO | filters.VIDEO_NOTE | filters.VOICE
-        | filters.AUDIO | filters.Document.ALL | filters.Sticker.ALL,
+        filters.VOICE | filters.AUDIO | filters.VIDEO | filters.VIDEO_NOTE
+        | filters.Document.AUDIO | filters.Document.VIDEO,
+        handle_media_file
+    ))
+    application.add_handler(MessageHandler(
+        filters.PHOTO | filters.Document.ALL | filters.Sticker.ALL,
         handle_unsupported_message
     ))
 

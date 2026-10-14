@@ -7,6 +7,7 @@ Transcription and cleanup run on [Groq's](https://groq.com) hosted API, on its f
 ## Features
 
 - **Platforms:** YouTube, Instagram, X/Twitter, TikTok (network-permitting — see [Known Limitations](#known-limitations)), Facebook.
+- **File uploads:** send a voice message, audio file, video, or video note (up to 20 MB, Telegram's standard bot download limit) directly instead of a link - it goes through the same transcribe/clean/export pipeline. Larger files would need a self-hosted Telegram Bot API server.
 - **Pipeline:** download → extract audio → transcribe (Groq-hosted Whisper) → clean up (Groq-hosted LLM) → export (PDF/text), plus optional **translate** (into any supported language) and **AI summary** (3-5 bullet points) - see [Translation](#translation--re-enabled-despite-a-known-reliability-tradeoff) for a known reliability caveat on translation specifically.
 - **Interface localization:** every bot-facing string (not just the transcript) is available in English, Russian, Arabic, and Uzbek, chosen via `/language` and saved per user.
 - **History:** `/history` lists your last 10 transcripts; tap one to reopen it and re-export.

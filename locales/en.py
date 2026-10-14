@@ -194,9 +194,9 @@ UNRECOGNIZED_LINK_PARTS = [
 # silent (which is what happened before this existed - a natural mistake
 # for a transcription bot's users to make, worth a clear reply).
 UNSUPPORTED_MESSAGE_PARTS = [
-    ("I work from links, not files sent directly — send me a ", False),
+    ("I can't read that kind of file. Send me a voice message, an audio or video file (up to 20 MB), or a ", False),
     *_PLATFORM_LIST_PARTS,
-    (" link instead.", False),
+    (" link.", False),
 ]
 # --- Errors - one leading emoji per message (quick visual "what kind of
 # problem" cue at a glance) plus bold for the diagnosis and italic for the
@@ -288,12 +288,20 @@ HISTORY_EMPTY_PARTS = [
 ]
 HISTORY_NOT_FOUND = "📜 Hmm, I couldn't find that one anymore — it may be too old or already gone. _Try /history again._"
 
+# Direct file uploads (voice note / audio / video sent straight to the bot).
+DOWNLOADING_FILE = "📥 *Getting your file…* _hang tight._"
+FILE_TOO_BIG_TO_DOWNLOAD = (
+    "📦 That file is *over 20 MB*, and Telegram won't let me download anything that big. "
+    "_Send a smaller file, or paste a link to it instead._"
+)
+
 PLATFORM_LABELS = {
     "youtube": "🎥 YouTube",
     "instagram": "📸 Instagram",
     "twitter": "✖️ X/Twitter",
     "tiktok": "🎵 TikTok",
     "facebook": "📘 Facebook",
+    "upload": "📎 File",
 }
 
 # Display names for the video's SPOKEN (detected) language, shown in

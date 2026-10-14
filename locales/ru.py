@@ -158,7 +158,7 @@ UNRECOGNIZED_LINK_PARTS = [
     (" — попробуй одну из них.", False),
 ]
 UNSUPPORTED_MESSAGE_PARTS = [
-    ("Я работаю со ссылками, а не с файлами напрямую — пришли мне ссылку на ", False),
+    ("С таким файлом я не работаю. Пришли голосовое сообщение, аудио- или видеофайл (до 20 МБ) либо ссылку на ", False),
     *_PLATFORM_LIST_PARTS,
     (".", False),
 ]
@@ -246,12 +246,20 @@ HISTORY_EMPTY_PARTS = [
 ]
 HISTORY_NOT_FOUND = "📜 Хм, не могу найти эту запись — возможно, она устарела или уже удалена. _Попробуй /history ещё раз._"
 
+# Direct file uploads (voice note / audio / video sent straight to the bot).
+DOWNLOADING_FILE = "📥 *Получаю твой файл…* _минутку._"
+FILE_TOO_BIG_TO_DOWNLOAD = (
+    "📦 Этот файл *больше 20 МБ*, а Telegram не позволяет мне скачивать такие большие файлы. "
+    "_Пришли файл поменьше или ссылку на него._"
+)
+
 PLATFORM_LABELS = {
     "youtube": "🎥 YouTube",
     "instagram": "📸 Instagram",
     "twitter": "✖️ X/Twitter",
     "tiktok": "🎵 TikTok",
     "facebook": "📘 Facebook",
+    "upload": "📎 Файл",
 }
 
 TARGET_LANGUAGE_NAMES = {
