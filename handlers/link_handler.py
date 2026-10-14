@@ -682,6 +682,9 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
             transcribe_audio, audio_path, on_uzbek_fallback_start=_on_uzbek_fallback_start
         )
 
+        if not transcript.strip():
+            raise ValueError("No speech detected in this audio.")
+
         logger.info(f"Detected language: {detected_language}")
         logger.info(f"Raw transcript: {transcript}")
 
@@ -733,7 +736,9 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
 
         logger.exception(f"Processing failed for platform={platform}: {error_name}: {error}")
 
-        if "no video could be found" in error_text:
+        if "no speech detected" in error_text:
+            error_reply_text = msg.t(lang, "ERROR_NO_SPEECH")
+        elif "no video could be found" in error_text:
             error_reply_text = msg.t(lang, "ERROR_NO_VIDEO")
         elif "does not contain an audio track" in error_text:
             error_reply_text = msg.t(lang, "ERROR_NO_AUDIO")

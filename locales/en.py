@@ -314,6 +314,8 @@ COPY_HINT = "📋 Tap the text below to copy it."
 
 LINK_RECEIVED = "👀 *Got your link!* _Checking it now…_"
 
+ERROR_NO_SPEECH = "🔇 I couldn't hear any *speech* in this — it may be silent, or just music or noise. _Try one where someone is talking._"
+
 PLATFORM_LABELS = {
     "youtube": "🎥 YouTube",
     "instagram": "📸 Instagram",

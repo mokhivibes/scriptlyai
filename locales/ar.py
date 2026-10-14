@@ -267,6 +267,8 @@ COPY_HINT = "📋 اضغط على النص أدناه لنسخه."
 
 LINK_RECEIVED = "👀 *وصلني رابطك!* _أتحقق منه الآن…_"
 
+ERROR_NO_SPEECH = "🔇 لم أسمع أي *كلام* في هذا — ربما هو صامت أو يحتوي على موسيقى أو ضوضاء فقط. _جرّب مقطعاً يتحدث فيه شخص._"
+
 PLATFORM_LABELS = {
     "youtube": "🎥 YouTube",
     "instagram": "📸 Instagram",

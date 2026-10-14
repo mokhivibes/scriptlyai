@@ -346,6 +346,9 @@ def _normalize_language_code(language_name):
     return _LANGUAGE_NAME_TO_CODE.get(language_name.lower(), language_name.lower())
 
 
+NO_SPEECH_THRESHOLD = 0.6
+
+
 def _transcribe(audio_path: str, language: str = None):
     with open(audio_path, "rb") as audio_file:
         data = {"model": MODEL_NAME, "response_format": "verbose_json"}
@@ -362,8 +365,18 @@ def _transcribe(audio_path: str, language: str = None):
 
     response.raise_for_status()
     result = response.json()
+    text = result.get("text", "").strip()
 
-    return result.get("text", "").strip(), _normalize_language_code(result.get("language"))
+    # Whisper hallucinates short filler ("you", ".") on silence/noise/music.
+    # Measured on Groq: real speech -> no_speech_prob 0.0, silence 0.7,
+    # pure tone 1.0; 0.6 is Whisper's own standard threshold. Return empty
+    # text so the caller can tell the user there was nothing to transcribe.
+    segments = result.get("segments") or []
+    all_no_speech = bool(segments) and all(s.get("no_speech_prob", 0) > NO_SPEECH_THRESHOLD for s in segments)
+    if all_no_speech or not any(ch.isalnum() for ch in text):
+        text = ""
+
+    return text, _normalize_language_code(result.get("language"))
 
 
 # Tried in this order when Groq's detection lands in the cluster - Kyrgyz
@@ -411,7 +424,7 @@ def transcribe_audio(audio_path: str, language: str = None, on_uzbek_fallback_st
 
     text, detected_language = call_sync_with_retry(_transcribe, audio_path, language=language)
 
-    if language is None and detected_language in UZBEK_MISDETECTION_CLUSTER:
+    if language is None and text and detected_language in UZBEK_MISDETECTION_CLUSTER:
         logger.info(f"Groq detected '{detected_language}' (in Uzbek misdetection cluster) - trying local fallbacks")
 
         if on_uzbek_fallback_start:

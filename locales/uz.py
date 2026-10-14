@@ -268,6 +268,8 @@ COPY_HINT = "📋 Nusxalash uchun quyidagi matnga bosing."
 
 LINK_RECEIVED = "👀 *Havolangiz yetib keldi!* _Tekshiryapman…_"
 
+ERROR_NO_SPEECH = "🔇 Bunda hech qanday *nutq* eshitmadim — jim yoki faqat musiqa yoki shovqin boʻlishi mumkin. _Kimdir gapiradigan yozuvni sinab koʻring._"
+
 PLATFORM_LABELS = {
     "youtube": "🎥 YouTube",
     "instagram": "📸 Instagram",
