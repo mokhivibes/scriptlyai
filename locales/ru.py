@@ -267,6 +267,8 @@ FEEDBACK_TOO_SOON = "⏳ Подожди минуту, прежде чем отп
 COPY_BUTTON = "📋 Копировать"
 COPY_HINT = "📋 Нажми на текст ниже, чтобы скопировать."
 
+LINK_RECEIVED = "👀 *Получил твою ссылку!* _Проверяю…_"
+
 PLATFORM_LABELS = {
     "youtube": "🎥 YouTube",
     "instagram": "📸 Instagram",

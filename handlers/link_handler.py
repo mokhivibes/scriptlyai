@@ -110,7 +110,7 @@ def _get_duration_seconds(url):
     """
     import yt_dlp
 
-    options = {"quiet": True, "no_warnings": True, "skip_download": True}
+    options = {"quiet": True, "no_warnings": True, "skip_download": True, "socket_timeout": 15}
     try:
         with yt_dlp.YoutubeDL(options) as ydl:
             info = ydl.extract_info(url, download=False)
@@ -395,6 +395,7 @@ async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     platform = detect_platform(url)
+    logger.info(f"Link received: platform={platform} user={update.effective_user.id}")
 
     if platform in ("youtube", "instagram", "twitter", "tiktok", "facebook"):
         # Marked busy synchronously, BEFORE the duration lookup below awaits
@@ -416,8 +417,24 @@ async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "facebook": "Facebook",
         }[platform]
 
+        # Instant acknowledgement - the duration lookup below can take
+        # several seconds (or stall on a bad connection), and silence
+        # makes users think the bot is dead.
+        ack_message = None
         try:
-            duration = await asyncio.to_thread(_get_duration_seconds, url)
+            ack_message = await call_with_retry(update.message.reply_text, msg.t(lang, "LINK_RECEIVED"), parse_mode="Markdown")
+        except Exception:
+            logger.warning("Could not send the link-received acknowledgement (continuing)")
+
+        try:
+            try:
+                duration = await asyncio.wait_for(asyncio.to_thread(_get_duration_seconds, url), timeout=30)
+            except asyncio.TimeoutError:
+                logger.warning("Duration lookup timed out (non-fatal, proceeding without warning)")
+                duration = None
+
+            if ack_message:
+                await _delete_silently(ack_message)
 
             if duration and duration > LONG_CONTENT_THRESHOLD_SECONDS:
                 context.user_data["pending_url"] = url

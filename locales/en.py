@@ -309,6 +309,8 @@ FEEDBACK_TOO_SOON = "⏳ Please wait a minute before sending more feedback."
 COPY_BUTTON = "📋 Copy"
 COPY_HINT = "📋 Tap the text below to copy it."
 
+LINK_RECEIVED = "👀 *Got your link!* _Checking it now…_"
+
 PLATFORM_LABELS = {
     "youtube": "🎥 YouTube",
     "instagram": "📸 Instagram",

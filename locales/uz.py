@@ -263,6 +263,8 @@ FEEDBACK_TOO_SOON = "⏳ Yana fikr yuborishdan oldin bir daqiqa kuting."
 COPY_BUTTON = "📋 Nusxalash"
 COPY_HINT = "📋 Nusxalash uchun quyidagi matnga bosing."
 
+LINK_RECEIVED = "👀 *Havolangiz yetib keldi!* _Tekshiryapman…_"
+
 PLATFORM_LABELS = {
     "youtube": "🎥 YouTube",
     "instagram": "📸 Instagram",
