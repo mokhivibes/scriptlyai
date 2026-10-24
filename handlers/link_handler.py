@@ -34,7 +34,7 @@ from database import (
 from utils.network_retry import call_with_retry, call_sync_with_retry
 from utils.stickers import STICKER_PROCESSING, STICKER_DONE, STICKER_ERROR
 from handlers.command_handler import help_command, history_command, language_command
-from config import OWNER_USER_ID, BOT_USERNAME
+from config import OWNER_USER_ID, BOT_USERNAME, YOUTUBE_COOKIES_PATH
 
 logger = logging.getLogger(__name__)
 
@@ -115,6 +115,8 @@ def _get_duration_seconds(url):
     import yt_dlp
 
     options = {"quiet": True, "no_warnings": True, "skip_download": True, "socket_timeout": 15}
+    if os.path.exists(YOUTUBE_COOKIES_PATH) and ("youtube.com" in url or "youtu.be" in url):
+        options["cookiefile"] = YOUTUBE_COOKIES_PATH
     try:
         with yt_dlp.YoutubeDL(options) as ydl:
             info = ydl.extract_info(url, download=False)

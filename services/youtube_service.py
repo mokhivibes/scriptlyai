@@ -1,6 +1,8 @@
 import os
 import yt_dlp
 
+from config import YOUTUBE_COOKIES_PATH
+
 
 DOWNLOAD_DIR = "downloads"
 
@@ -40,6 +42,9 @@ def download_youtube_video(url: str):
         "retries": 5,
         "fragment_retries": 5,
     }
+
+    if os.path.exists(YOUTUBE_COOKIES_PATH):
+        options["cookiefile"] = YOUTUBE_COOKIES_PATH
 
     with yt_dlp.YoutubeDL(options) as ydl:
         info = ydl.extract_info(url, download=True)

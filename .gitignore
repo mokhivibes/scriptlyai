@@ -11,3 +11,4 @@ logs/
 # fallback) - too large for git, and reproducible from the conversion
 # command documented there if this machine's copy is ever lost.
 models/
+youtube_cookies.txt

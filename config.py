@@ -34,3 +34,9 @@ OWNER_USER_ID = int(OWNER_USER_ID) if OWNER_USER_ID else None
 
 # Appended under everything the bot sends out, so shared results lead back here.
 BOT_USERNAME = "@ScriptlyAI_bot"
+
+# Optional Netscape-format cookies.txt for YouTube. YouTube blocks most
+# datacenter/server IPs with "Sign in to confirm you're not a bot"; cookies
+# from a (throwaway) logged-in account get past that. Not in git - it's a
+# login credential. If the file doesn't exist, downloads run without it.
+YOUTUBE_COOKIES_PATH = "youtube_cookies.txt"
