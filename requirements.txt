@@ -10,3 +10,6 @@ python-dotenv
 # handles every other language, so this stays a small, targeted dependency
 # rather than reintroducing the full local-Whisper RAM footprint.
 faster-whisper
+# faster-whisper 1.2.1 breaks on av>=19 (open() rejects metadata_errors) - the local
+# Uzbek/Kazakh/Kyrgyz models then fail silently. Keep this pin until faster-whisper is upgraded.
+av==18.1.0
