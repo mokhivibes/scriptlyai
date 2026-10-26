@@ -116,3 +116,44 @@ def render_uzbek(text: str, alphabet: str) -> str:
 def pipeline_alphabet(text: str) -> str:
     """What the user sees -> pipeline Latin (for translating/summarizing it)."""
     return new_alphabet_to_latin(text)
+
+
+# --- Interface text ---
+
+# Parts of a UI string that must never be converted: format placeholders,
+# /commands, @handles, URLs, and English words used inside Uzbek sentences.
+_UI_PROTECTED = re.compile(r"(\{[^}]*\}|/[A-Za-z_]+|@\w+|https?://\S+|\bEnglish\b)")
+
+
+def ui_text(text: str) -> str:
+    """One interface string -> the new alphabet, leaving placeholders,
+    /commands, @handles and URLs untouched."""
+    pieces = _UI_PROTECTED.split(text)
+    return "".join(piece if i % 2 else latin_to_new_alphabet(piece) for i, piece in enumerate(pieces))
+
+
+def convert_ui_value(value):
+    """Deep-converts every string inside a locale constant (str, list, tuple,
+    dict values); anything else - style flags, sentinels - is left alone."""
+    if isinstance(value, str):
+        return ui_text(value)
+    if isinstance(value, list):
+        return [convert_ui_value(item) for item in value]
+    if isinstance(value, tuple):
+        return tuple(convert_ui_value(item) for item in value)
+    if isinstance(value, dict):
+        return {key: convert_ui_value(item) for key, item in value.items()}
+    return value
+
+
+def apply_new_alphabet_to_locale(module):
+    """Converts the Uzbek locale module's constants in place (once). The
+    ALPHABET_* button labels are skipped - they deliberately show BOTH
+    alphabets side by side."""
+    if getattr(module, "_UI_ALPHABET_APPLIED", False):
+        return
+    for name in dir(module):
+        if name.startswith("_") or name.startswith("ALPHABET_") or not name.isupper():
+            continue
+        setattr(module, name, convert_ui_value(getattr(module, name)))
+    module._UI_ALPHABET_APPLIED = True

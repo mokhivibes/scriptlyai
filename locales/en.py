@@ -372,3 +372,6 @@ ALPHABET_CHANGED_OLD = "🔤 Switched to the old alphabet (oʻ gʻ sh ch)"
 GET_TEXT_BUTTON = "📝 Get the text"
 AUDIO_CAPTION_ASK = "Here's the audio I pulled out 🎧\n\nWant the text too? Tap the button below 👇"
 GET_TEXT_EXPIRED = "⏳ That audio isn't saved anymore (I only keep it for an hour). Please send the link again."
+
+# --- YouTube refusing the server (expired cookies) ---
+YOUTUBE_BLOCKED = "⚠️ YouTube is blocking me for the moment, so I can't fetch this link right now. I've let the owner know. Please try again later, or send the audio or video as a file instead."

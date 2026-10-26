@@ -33,6 +33,7 @@ from database import (
     get_total_usage_today,
     has_sent_capacity_alert_today,
     get_counters,
+    bump_counter,
     owner_alert_already_sent,
     mark_owner_alert_sent,
     next_quota_reset,
@@ -407,6 +408,34 @@ async def _maybe_alert_owner_of_capacity(context):
         logger.exception("Failed to send owner capacity alert - continuing")
 
 
+async def _alert_owner_youtube_cookies(context):
+    """Tells the owner the YouTube cookies need re-exporting - once a day at
+    most (the failure repeats for every YouTube link until it's fixed)."""
+
+    bump_counter("youtube_signin_error")
+
+    if not OWNER_USER_ID:
+        return
+
+    try:
+        if owner_alert_already_sent("youtube_cookies"):
+            return
+        mark_owner_alert_sent("youtube_cookies")
+        await context.bot.send_message(
+            chat_id=OWNER_USER_ID,
+            text=(
+                "🍪 YouTube links are failing: YouTube is asking the server to sign in again, so the saved "
+                "cookies have expired.\n\n"
+                "To fix it: open a private Chrome window, sign in to youtube.com with the spare Google account, "
+                "open youtube.com/robots.txt, click the \"Get cookies.txt LOCALLY\" icon and press Export, close the "
+                "window, then ask Claude to upload the new file (it will be in Downloads).\n\n"
+                "Other platforms and file uploads still work."
+            ),
+        )
+    except Exception:
+        logger.exception("Failed to send owner YouTube-cookies alert - continuing")
+
+
 def _reset_text() -> str:
     left, reset_local = next_quota_reset()
     hours, minutes = divmod(int(left.total_seconds()) // 60, 60)
@@ -736,6 +765,8 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
                 call_sync_with_retry, download_youtube_video, url
             )
 
+            bump_counter("youtube_ok")
+
         elif platform == "twitter":
             video_path, video_title = await asyncio.to_thread(
                 call_sync_with_retry, download_twitter_video, url
@@ -920,8 +951,15 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
 
         logger.exception(f"Processing failed for platform={platform}: {error_name}: {error}")
 
+        youtube_blocked = platform == "youtube" and "sign in to confirm" in error_text
+
         if "no speech detected" in error_text:
             error_reply_text = msg.t(lang, "ERROR_NO_SPEECH")
+        elif youtube_blocked:
+            # YouTube is asking the server to prove it's not a bot again: the
+            # cookie file (youtube_cookies.txt) has expired or been invalidated.
+            error_reply_text = msg.t(lang, "YOUTUBE_BLOCKED")
+            await _alert_owner_youtube_cookies(context)
         elif "no video could be found" in error_text:
             error_reply_text = msg.t(lang, "ERROR_NO_VIDEO")
         elif "does not contain an audio track" in error_text:

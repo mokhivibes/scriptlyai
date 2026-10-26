@@ -3,12 +3,21 @@ from datetime import datetime
 from importlib import import_module
 
 from utils.rich_text import build_bold_message, resolve_parts
+from utils.uzbek_script import apply_new_alphabet_to_locale, new_alphabet_to_latin
+from config import UZBEK_NEW_ALPHABET
 from utils.platform_emoji import PLATFORM_EMOJI_IDS, PLATFORM_PLACEHOLDER_EMOJIS
 
 DEFAULT_LANGUAGE = "en"
 SUPPORTED_LANGUAGES = ("en", "ru", "ar", "uz")
 
 _LOCALES = {code: import_module(f"locales.{code}") for code in SUPPORTED_LANGUAGES}
+
+# The Uzbek interface text is written in the standard Latin spelling (easy
+# for a native reviewer to read and edit); it is shown in the revised
+# alphabet (oʻ->ö gʻ->ğ sh->ş ch->ç) unless UZBEK_NEW_ALPHABET is turned off.
+# Must run before anything below reads the locale constants.
+if UZBEK_NEW_ALPHABET:
+    apply_new_alphabet_to_locale(_LOCALES["uz"])
 
 # Platform brand names aren't translated (standard localization practice),
 # so their emoji-only lookup for history labels stays global too.
@@ -27,7 +36,7 @@ LANGUAGE_FLAGS = {"uz": "🇺🇿", "en": "🇬🇧", "ru": "🇷🇺", "ar": "�
 LANGUAGE_PICKER_PROMPT = (
     "👋 Hey there! / Привет! / أهلاً! / Salom!\n\n"
     "Which language should I use? / На каком языке говорить? / "
-    "ما اللغة التي تفضلها؟ / Qaysi tilda gaplashaylik?"
+    "ما اللغة التي تفضلها؟ / " + ("Qaysi tilda gaplaşaylik?" if UZBEK_NEW_ALPHABET else "Qaysi tilda gaplashaylik?")
 )
 
 # Telegram inline button labels get cramped fast - keep the title short
@@ -91,6 +100,10 @@ for _lang_code in SUPPORTED_LANGUAGES:
     _SHORTCUT_LOOKUP[_help_label] = "help"
     _SHORTCUT_LOOKUP[_history_label] = "history"
     _SHORTCUT_LOOKUP[_language_label] = "language"
+    # Keyboards already on users' screens still show the labels from before
+    # the Uzbek interface switched alphabets - keep those taps working.
+    for _label, _command in ((_help_label, "help"), (_history_label, "history"), (_language_label, "language")):
+        _SHORTCUT_LOOKUP.setdefault(new_alphabet_to_latin(_label), _command)
 
 
 def match_shortcut(text: str):
