@@ -121,7 +121,8 @@ def is_cleanup_trustworthy(raw_transcript: str, cleaned_transcript: str, min_ove
     independent checks - either one failing falls back to the raw transcript:
 
     1. Global word overlap: catches wholesale fabrication or summarization.
-    2. Boundary overlap: the global ratio barely moves when just a couple of
+    2. Added content (the reverse of 1): invented or repeated text.
+    3. Boundary overlap: the global ratio barely moves when just a couple of
        words are dropped from a long transcript, which is exactly where
        models tend to drop content (an opening phrase reworded away, or a
        trailing-off ending) - so the first/last few words are checked
@@ -133,10 +134,19 @@ def is_cleanup_trustworthy(raw_transcript: str, cleaned_transcript: str, min_ove
     if not raw_words:
         return True
 
-    cleaned_counts = Counter(_normalize_words(cleaned_transcript))
+    cleaned_words = _normalize_words(cleaned_transcript)
+    cleaned_counts = Counter(cleaned_words)
 
     overlap_ratio = _survival_ratio(raw_words, cleaned_counts)
     if overlap_ratio < min_overlap:
+        return False
+
+    # The mirror check: how much of the CLEANED text exists in the raw text.
+    # The checks above only notice dropped content; invented sentences or a
+    # repeated paragraph left every raw word intact and so slipped through
+    # (found in pre-launch QA, and see the earlier duplication finding).
+    # Duplicated words only count up to how often the raw text had them.
+    if _survival_ratio(cleaned_words, Counter(raw_words)) < min_overlap:
         return False
 
     window = min(BOUNDARY_WINDOW, len(raw_words))
