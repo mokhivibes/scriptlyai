@@ -17,6 +17,7 @@ _PLATFORM_LIST_PARTS = [
 # handlers/link_handler.py for why; don't advertise a feature that's
 # currently hidden from the button menu.
 _FEATURE_LIST_PARTS = [
+    ("🎧 ", False), ("Аудио", True), (" — сразу пришлю MP3 из любой ссылки\n", False),
     ("✍️ ", False), ("Расшифровка", True), (" — превращаю сказанное в чистый, читаемый текст\n", False),
     ("🔍 ", False), ("Краткое содержание", True), (" — если нужна суть\n", False),
     ("📄 ", False), ("Экспорт", True), (" — сохраню как PDF или текстовый файл\n", False),
