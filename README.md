@@ -195,3 +195,19 @@ The actual root cause: the prompt's paragraph-organization rules ("divide into 3
 ## Testing
 
 There's no automated test suite (`pytest` et al.) — testing throughout this project has been done via direct, real-condition verification: real downloads against real platform URLs, mocked-but-realistic Telegram `Update`/`CallbackQuery` objects driving the actual handler code for concurrency/retry scenarios, and live spot-checks across all 4 interface languages. See the project's development history for specifics; a from-scratch test suite would be a reasonable next step if this grows beyond single-maintainer use.
+
+## Launch limits and operations (measured 2026-10-26)
+
+Everything runs on free tiers, so the limits below decide how many people the bot can serve per day. Per-user cap: 15 transcriptions/day (`PER_USER_DAILY_LIMIT`).
+
+| Service | Free-tier limit (whole bot) | What happens at the limit |
+|---|---|---|
+| Groq Whisper (transcription) | 2,000 requests/day | friendly "busy, try later" message |
+| Groq gpt-oss-120b (cleanup, summary) | **8,000 tokens/minute**, 1,000 requests/day | waits up to 25 s and retries; if still limited the transcript is delivered uncleaned |
+| Gemini 3.5 Transcribe (Uzbek/Kazakh/Kyrgyz) | 25 requests/day, 3/min | falls to gemini-3.5-flash (20/day), then flash-lite (~500/day, a little less accurate) |
+
+- `/stats` (owner only) shows today's usage; the owner is also messaged (once a day each) when the best Gemini quotas run out, flash-lite nears its cap, Gemini returns nothing repeatedly, or YouTube cookies expire.
+- Links longer than 45 minutes and live streams are refused; downloads are capped at 250 MB. Audio is sent first and transcribed only when the user taps "Get the text".
+- YouTube needs a cookie file from a spare Google account on the server (`youtube_cookies.txt`, not in git) plus Deno (`pip install deno` in the venv). When it expires the owner gets a message with the re-export steps.
+- `deploy/backup_db.py` + `deploy/scriptlyai-backup.*` make a verified daily backup of `bot.db` (keeps 14 days) - install the timer to enable.
+- On the server set `CLEAN_STALE_DOWNLOADS=1` so leftovers in `downloads/` are cleared at startup.
