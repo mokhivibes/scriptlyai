@@ -848,7 +848,11 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
                 await _delete_silently(status_message)
                 return
 
-        await call_with_retry(status_message.edit_text, msg.transcribing_message(lang), parse_mode="Markdown")
+        # On resume the status message was just created with a transcribing
+        # line - editing it to another random variant can pick the SAME text,
+        # which Telegram rejects ("message is not modified").
+        if not resume:
+            await call_with_retry(status_message.edit_text, msg.transcribing_message(lang), parse_mode="Markdown")
 
         from services.speech_service import transcribe_audio
 
