@@ -1,5 +1,5 @@
 import re
-from urllib.parse import urlparse
+from urllib.parse import parse_qs, urlparse
 
 # Platform -> registered domains. A host matches if it IS the domain or a
 # subdomain of it (m.youtube.com, music.youtube.com, vt.tiktok.com,
@@ -81,3 +81,63 @@ def extract_url(text: str):
         return "https://" + bare.group(1).rstrip(_TRAILING_PUNCTUATION)
 
     return None
+
+
+def canonical_link_key(url: str, platform: str):
+    """
+    A stable identity for the VIDEO a link points to - the same video behind
+    youtu.be/x, youtube.com/watch?v=x and /shorts/x (with or without tracking
+    parameters) gets the same key, so a repeat request can be served from
+    memory. Returns None when the video can't be identified from the URL
+    alone (e.g. an unresolved short link) - those simply aren't cached.
+    """
+
+    try:
+        parsed = urlparse(url)
+        host = (parsed.hostname or "").lower()
+        path = [part for part in parsed.path.split("/") if part]
+        query = parse_qs(parsed.query)
+
+        if platform == "youtube":
+            if host.endswith("youtu.be") and path:
+                video_id = path[0]
+            elif "v" in query:
+                video_id = query["v"][0]
+            elif len(path) >= 2 and path[0] in ("shorts", "embed", "live", "v"):
+                video_id = path[1]
+            else:
+                return None
+            return f"youtube:{video_id}" if re.fullmatch(r"[A-Za-z0-9_-]{6,20}", video_id) else None
+
+        if platform == "instagram":
+            for index, part in enumerate(path[:-1]):
+                if part in ("reel", "reels", "p", "tv"):
+                    return f"instagram:{path[index + 1]}"
+            return None
+
+        if platform == "tiktok":
+            if "video" in path and path.index("video") + 1 < len(path):
+                return f"tiktok:{path[path.index('video') + 1]}"
+            if host.split(".")[0] in ("vm", "vt") and path:
+                return f"tiktok-short:{path[0]}"
+            return None
+
+        if platform == "facebook":
+            if "v" in query:
+                return f"facebook:{query['v'][0]}"
+            if host.endswith("fb.watch") and path:
+                return f"facebook-short:{path[0]}"
+            for index, part in enumerate(path[:-1]):
+                if part in ("videos", "reel", "reels"):
+                    return f"facebook:{path[index + 1]}"
+            return None
+
+        if platform == "twitter":
+            if "status" in path and path.index("status") + 1 < len(path):
+                status_id = path[path.index("status") + 1]
+                return f"twitter:{status_id}" if status_id.isdigit() else None
+            return None
+
+        return None
+    except Exception:
+        return None

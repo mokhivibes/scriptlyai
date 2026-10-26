@@ -281,6 +281,8 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"• Flash: {flash} of 20{flags['flash']}\n"
         f"• Flash-lite: {lite} transcripts, {lite_calls} calls of ~500\n"
         f"• Gemini gave nothing: {counters.get('gemini_failed', 0)}\n\n"
+        f"Served from memory today: {counters.get('cache_hit_audio', 0)} audio, {counters.get('cache_hit_text', 0)} text "
+        "(no download or quota used)\n"
         f"YouTube downloads today: {counters.get('youtube_ok', 0)} ok, "
         f"{counters.get('youtube_signin_error', 0)} blocked (blocked = cookies expired)\n\n"
         f"Quotas reset at {reset_local:%H:%M} Tashkent (in {hours}h {minutes}m).\n"

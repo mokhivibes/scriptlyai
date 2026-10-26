@@ -8,7 +8,7 @@ from urllib.parse import quote_plus
 from telegram import CopyTextButton, Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
-from utils.link_detector import extract_url, detect_platform
+from utils.link_detector import extract_url, detect_platform, canonical_link_key
 from utils.text_chunker import split_into_chunks
 from utils.rich_text import CODE, QUOTE_BOLD, build_bold_message, simple_markdown_parts
 from utils import messages as msg
@@ -34,6 +34,10 @@ from database import (
     has_sent_capacity_alert_today,
     get_counters,
     bump_counter,
+    get_link_cache,
+    save_link_audio,
+    save_link_transcript,
+    forget_link_audio,
     owner_alert_already_sent,
     mark_owner_alert_sent,
     next_quota_reset,
@@ -143,6 +147,89 @@ def _purge_expired_pending(context):
         if now - info["created"] > PENDING_TEXT_TTL_SECONDS:
             registry.pop(token, None)
             _remove_file(info.get("audio_path"))
+
+
+async def _deliver_transcript(message, context, lang, user_id, platform, title, text, detected_language):
+    """
+    Shows a finished transcript - freshly made or served from memory: shows it
+    in this user's Uzbek alphabet, makes it the active one for the
+    export/summary buttons, saves it to their history and sends it with the
+    action buttons.
+
+    export_text/export_language track whatever is CURRENTLY on screen (the
+    original transcript, or a translation/summary of it); last_transcript/
+    detected_language always stay the original - Translate/Summary always
+    operate on the source, never on a translation-of-a-translation (see
+    build_save_keyboard).
+    """
+
+    if detected_language == "uz":
+        text = render_uzbek(text, _alphabet_for(user_id))
+
+    context.user_data["last_transcript"] = text
+    context.user_data["detected_language"] = detected_language
+    context.user_data["export_text"] = text
+    context.user_data["export_language"] = detected_language
+
+    add_transcript(
+        user_id=user_id,
+        platform=platform,
+        detected_language=detected_language,
+        title=title,
+        transcript=text,
+    )
+
+    await call_with_retry(message.reply_sticker, STICKER_DONE)
+    await send_result_text(message, msg.transcript_header_parts(lang), text)
+
+    await call_with_retry(
+        message.reply_text,
+        msg.t(lang, "NEXT_ACTIONS_PROMPT"),
+        reply_markup=build_export_keyboard(
+            lang, text, alphabet=_alphabet_button_state(lang, detected_language, user_id)
+        ),
+    )
+
+    return text
+
+
+async def _serve_cached_audio(message, context, lang, user_id, cache_key, cached, url, platform, platform_name):
+    """
+    This video was processed before: send its audio straight from Telegram's
+    own copy (by file_id - nothing is downloaded or uploaded) with the usual
+    "Get the text" button. Returns False if Telegram no longer accepts the
+    saved file_id, so the caller falls back to the normal pipeline.
+    """
+
+    token = uuid.uuid4().hex[:12]
+    markup = InlineKeyboardMarkup([[
+        InlineKeyboardButton(msg.t(lang, "GET_TEXT_BUTTON"), callback_data=f"get_text_{token}")
+    ]])
+
+    try:
+        await call_with_retry(
+            message.reply_audio,
+            audio=cached["audio_file_id"],
+            reply_markup=markup,
+            **_caption_kwargs(msg.t(lang, "AUDIO_CAPTION_ASK")),
+        )
+    except Exception:
+        logger.warning(f"Telegram rejected the saved audio for {cache_key} - processing it again")
+        forget_link_audio(cache_key)
+        return False
+
+    _purge_expired_pending(context)
+    registry = _pending_registry(context)
+    mine = [t for t, info in registry.items() if info["user_id"] == user_id]
+    for old_token in mine[: max(0, len(mine) - PENDING_PER_USER_MAX + 1)]:
+        _remove_file(registry.pop(old_token)["audio_path"])
+    registry[token] = {
+        "audio_path": None, "cached_key": cache_key, "title": cached["title"], "url": url,
+        "platform": platform, "platform_name": platform_name, "user_id": user_id, "created": time.time(),
+    }
+    bump_counter("cache_hit_audio")
+    logger.info(f"Audio served from memory: {cache_key} user={user_id}")
+    return True
 
 
 def _alphabet_for(user_id) -> str:
@@ -593,6 +680,19 @@ async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
             logger.warning("Could not send the link-received acknowledgement (continuing)")
 
         try:
+            cache_key = canonical_link_key(url, platform)
+            cached = get_link_cache(cache_key) if cache_key else None
+            if cached and cached["audio_file_id"]:
+                served = await _serve_cached_audio(
+                    update.message, context, lang, update.effective_user.id, cache_key, cached, url, platform, platform_name
+                )
+                if ack_message:
+                    await _delete_silently(ack_message)
+                if served:
+                    _mark_free(context)
+                    return
+                ack_message = None
+
             try:
                 duration, is_live = await asyncio.wait_for(asyncio.to_thread(_probe_url, url), timeout=30)
             except asyncio.TimeoutError:
@@ -665,7 +765,8 @@ async def handle_media_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await _process_link(message, context, None, "upload", "File", lang, update.effective_user.id, upload=upload)
 
 
-async def _process_link(message, context, url, platform, platform_name, lang, user_id, upload=None, resume=None):
+async def _process_link(message, context, url, platform, platform_name, lang, user_id, upload=None, resume=None,
+                        audio_already_sent=False):
     """
     Runs the actual download -> extract -> transcribe -> clean -> export
     pipeline. Called either immediately (short content) or from the
@@ -687,7 +788,10 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
     # = a pasted link, where we send the audio and wait for that tap instead
     # of transcribing straight away. Only actual transcription counts toward
     # the daily limit.
-    ask_first = upload is None and resume is None
+    # audio_already_sent: the audio came from memory (see _serve_cached_audio) and
+    # the user has now tapped "Get text" for a video whose text isn't saved yet.
+    ask_first = upload is None and resume is None and not audio_already_sent
+    cache_key = canonical_link_key(url, platform) if url else None
 
     if not ask_first:
         if get_daily_usage_count(user_id) >= PER_USER_DAILY_LIMIT:
@@ -824,7 +928,7 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
 
             logger.info(f"Audio extracted: {audio_path}")
 
-        if not upload and not resume:
+        if not upload and not resume and not audio_already_sent:
             token = uuid.uuid4().hex[:12]
             ask_markup = None
             if ask_first:
@@ -833,13 +937,21 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
                 ]])
 
             with open(audio_path, "rb") as audio_file:
-                await call_with_retry(
+                sent_audio = await call_with_retry(
                     message.reply_audio,
                     audio=audio_file,
                     filename=os.path.basename(audio_path),
                     reply_markup=ask_markup,
                     **_caption_kwargs(msg.t(lang, "AUDIO_CAPTION_ASK" if ask_first else "AUDIO_CAPTION"))
                 )
+
+            # Telegram keeps the uploaded file; remember its id so the same
+            # video never needs downloading or uploading again.
+            if cache_key and getattr(getattr(sent_audio, "audio", None), "file_id", None):
+                try:
+                    save_link_audio(cache_key, video_title, sent_audio.audio.file_id)
+                except Exception:
+                    logger.warning("Could not save the audio to the link cache")
 
             if ask_first:
                 _purge_expired_pending(context)
@@ -914,48 +1026,22 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
         cleaned_transcript = await asyncio.to_thread(clean_transcript, transcript)
         logger.info(f"Cleaned transcript ready ({len(cleaned_transcript)} characters)")
 
-        # Cleanup ran on the standard Uzbek Latin; what the user sees (and
-        # what's stored for /history, Copy and exports) uses the revised
-        # alphabet - see utils/uzbek_script.py.
-        if detected_language == "uz":
-            cleaned_transcript = render_uzbek(cleaned_transcript, _alphabet_for(user_id))
+        if cache_key:
+            # Remembered for the next person who sends this same link
+            # (Uzbek in the standard spelling; each user's own alphabet
+            # choice is applied when it is shown).
+            try:
+                save_link_transcript(
+                    cache_key,
+                    render_uzbek(cleaned_transcript, "old") if detected_language == "uz" else cleaned_transcript,
+                    detected_language,
+                    video_title,
+                )
+            except Exception:
+                logger.warning("Could not save the transcript to the link cache")
 
-        context.user_data["last_transcript"] = cleaned_transcript
-        context.user_data["detected_language"] = detected_language
-        # export_text/export_language track whatever's CURRENTLY on screen
-        # (the original transcript, or a translation/summary of it) - see
-        # build_save_keyboard()'s comment for why this is separate from
-        # last_transcript/detected_language, which always stay the
-        # original (Translate/Summary always operate on the source, never
-        # on a translation-of-a-translation).
-        context.user_data["export_text"] = cleaned_transcript
-        context.user_data["export_language"] = detected_language
+        await _deliver_transcript(message, context, lang, user_id, platform, video_title, cleaned_transcript, detected_language)
 
-        add_transcript(
-            user_id=user_id,
-            platform=platform,
-            detected_language=detected_language,
-            title=video_title,
-            transcript=cleaned_transcript
-        )
-
-        await call_with_retry(message.reply_sticker, STICKER_DONE)
-        await send_result_text(message, msg.transcript_header_parts(lang), cleaned_transcript)
-
-        await call_with_retry(
-            message.reply_text,
-            msg.t(lang, "NEXT_ACTIONS_PROMPT"),
-            reply_markup=build_export_keyboard(
-                lang, cleaned_transcript, alphabet=_alphabet_button_state(lang, detected_language, user_id)
-            )
-        )
-
-        # The processing sticker and the "cleaning up..." status line have
-        # both been superseded by the result just sent - delete them now
-        # that everything landed, so the chat isn't left with stale
-        # progress indicators. Deleted only at the very end (not earlier)
-        # so the except block below still has a live status_message to
-        # edit into an error if anything above it fails instead.
         await _delete_silently(processing_sticker_message)
         await _delete_silently(status_message)
 
@@ -1082,7 +1168,11 @@ async def _handle_get_text(query, context, lang, token):
     registry = _pending_registry(context)
     info = registry.get(token)
 
-    if not info or info["user_id"] != query.from_user.id or not os.path.exists(info["audio_path"]):
+    if (
+        not info
+        or info["user_id"] != query.from_user.id
+        or (info["audio_path"] is not None and not os.path.exists(info["audio_path"]))
+    ):
         if info and info["user_id"] == query.from_user.id:
             registry.pop(token, None)
         await call_with_retry(query.message.reply_text, msg.t(lang, "GET_TEXT_EXPIRED"), parse_mode="Markdown")
@@ -1095,6 +1185,24 @@ async def _handle_get_text(query, context, lang, token):
         await query.edit_message_reply_markup(reply_markup=None)
     except Exception:
         logger.warning("Could not remove the Get text button")
+
+    if info.get("cached_key"):
+        # The audio was served from memory. If the text is saved too, show it
+        # right away - no download, no transcription, no quota used.
+        cached = get_link_cache(info["cached_key"])
+        if cached and cached["transcript"]:
+            bump_counter("cache_hit_text")
+            await _deliver_transcript(
+                query.message, context, lang, query.from_user.id, info["platform"], info["title"],
+                cached["transcript"], cached["detected_language"] or "en",
+            )
+            return
+
+        await _process_link(
+            query.message, context, info["url"], info["platform"], info["platform_name"],
+            lang, query.from_user.id, audio_already_sent=True,
+        )
+        return
 
     await _process_link(
         query.message, context, info["url"], info["platform"], info["platform_name"],

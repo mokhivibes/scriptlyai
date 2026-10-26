@@ -264,7 +264,8 @@ PRIVACY_TEXT = (
     "🔒 *What I store*\n\n"
     "• Your Telegram ID, username, and first name — so I know it's you\n"
     "• Your chosen interface language — so I remember it next time\n"
-    "• Transcripts you've generated (platform, detected language, title, date) — so /history works\n\n"
+    "• Transcripts you've generated (platform, detected language, title, date) — so /history works\n"
+    "• Text and audio of public links I've already processed (no name attached) — so the same link is instant for anyone\n\n"
     "*What I don't store*\n\n"
     "• The video or audio file itself — deleted right after processing (audio waiting for your “Get the text” tap is removed after an hour at most)\n"
     "• Anything you haven't sent me\n\n"
@@ -307,7 +308,7 @@ LYRICS_HINT = "\n\n🎤 If that was a song name, tap below to find its lyrics."
 LYRICS_BUTTON = "🎤 Find lyrics"
 
 # Bot profile texts (shown on the bot's page / before /start) and /feedback.
-BOT_DESCRIPTION = "Send a video link or a voice note — get clean text in seconds. 🎬 Paste a YouTube, Instagram, TikTok, Facebook or X link: I send back the audio (MP3) and, when you tap, the text. 🎙 Or send a voice message, audio or video file (up to 20 MB). ✍️ I tidy it up and add a short summary, one-tap copy, or a PDF/text file. 🇺🇿 Great with Uzbek. 🌍 I speak English, Русский, العربية and Özbekça. Free, up to 15 texts a day. Tap Start to begin."
+BOT_DESCRIPTION = "Send a video link or a voice note — get clean text in seconds. 🎬 Paste a YouTube, Instagram, TikTok, Facebook or X link: I send back the audio (MP3) and, when you tap, the text. 🎙 Or send a voice message, audio or video file (up to 20 MB). ✍️ I tidy it up and add a short summary, one-tap copy, or a PDF/text file. 🇺🇿 Great with Uzbek. 🌍 I speak English, Русский, العربية and Özbekça. Free. Tap Start to begin."
 BOT_SHORT_DESCRIPTION = "Video link → MP3 audio + clean text in seconds. Voice notes too. Great with Uzbek 🇺🇿. PDF & summary. Free."
 FEEDBACK_USAGE = "💬 Got feedback or found a bug? Send it along with the command, like:\n/feedback the PDF cut off my last line"
 FEEDBACK_THANKS = "🙏 Thanks — your feedback reached me."

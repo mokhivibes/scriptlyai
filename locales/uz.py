@@ -219,7 +219,8 @@ PRIVACY_TEXT = (
     "🔒 *Nimalarni saqlayman*\n\n"
     "• Telegram ID, foydalanuvchi nomi va ismingiz — sizni tanish uchun\n"
     "• Tanlangan interfeys tili — keyingi safar eslab qolish uchun\n"
-    "• Siz olgan matnlar (platforma, aniqlangan til, sarlavha, sana) — /history ishlashi uchun\n\n"
+    "• Siz olgan matnlar (platforma, aniqlangan til, sarlavha, sana) — /history ishlashi uchun\n"
+    "• Allaqachon qayta ishlangan ommaviy havolalarning matni va audiosi (ismsiz) — shu havola hamma uchun darhol tayyor boʻlishi uchun\n\n"
     "*Nimalarni saqlamayman*\n\n"
     "• Video yoki audio faylning oʻzi — qayta ishlangandan keyin darhol oʻchiriladi (“Matnini olish” tugmasini kutayotgan audio koʻpi bilan bir soatdan keyin oʻchiriladi)\n"
     "• Siz menga yubormagan hech narsa\n\n"
@@ -261,7 +262,7 @@ LYRICS_HINT = "\n\n🎤 Agar bu qoʻshiq nomi boʻlsa, matnini topish uchun past
 LYRICS_BUTTON = "🎤 Qoʻshiq matnini topish"
 
 # Bot profile texts (shown on the bot's page / before /start) and /feedback.
-BOT_DESCRIPTION = "Video havola yoki ovozli xabar yuboring — soniyalarda toza matn oling. 🎬 YouTube, Instagram, TikTok, Facebook yoki X havolasini joylang: men audioni (MP3) yuboraman, tugmani bossangiz — matnni ham. 🎙 Yoki ovozli xabar, audio yoki video fayl (20 MB gacha) yuboring. ✍️ Matnni tartibga solaman va qisqa xulosa, bir bosishda nusxalash yoki PDF/matn fayli beraman. 🇺🇿 Oʻzbekchada a'lo. 🌍 English, Русский, العربية va Oʻzbekcha tillarida ishlayman. Bepul, kuniga 15 ta matn. Boshlash uchun Start tugmasini bosing."
+BOT_DESCRIPTION = "Video havola yoki ovozli xabar yuboring — soniyalarda toza matn oling. 🎬 YouTube, Instagram, TikTok, Facebook yoki X havolasini joylang: men audioni (MP3) yuboraman, tugmani bossangiz — matnni ham. 🎙 Yoki ovozli xabar, audio yoki video fayl (20 MB gacha) yuboring. ✍️ Matnni tartibga solaman va qisqa xulosa, bir bosishda nusxalash yoki PDF/matn fayli beraman. 🇺🇿 Oʻzbekchada a'lo. 🌍 English, Русский, العربية va Oʻzbekcha tillarida ishlayman. Bepul. Boshlash uchun Start tugmasini bosing."
 BOT_SHORT_DESCRIPTION = "Video havola → MP3 audio va toza matn soniyalarda. Ovozli xabar ham. Oʻzbekchada a'lo 🇺🇿. PDF, xulosa. Bepul."
 FEEDBACK_USAGE = "💬 Fikringiz bormi yoki xato topdingizmi? Buyruq bilan birga yuboring, masalan:\n/feedback PDF oxirgi qatorni kesib tashladi"
 FEEDBACK_THANKS = "🙏 Rahmat — fikringiz menga yetib keldi."

@@ -113,6 +113,25 @@ def init_database():
         )
     """)
 
+    # Results already produced for a public link, so the same video sent
+    # again - by anyone - is served from memory instead of downloading and
+    # transcribing again. `key` identifies the VIDEO (see
+    # utils/link_detector.py's canonical_link_key). No user id is stored: this
+    # is derived from a public link, not from a person. The audio is kept as
+    # Telegram's own file_id (re-sent instantly, nothing stored here), the
+    # transcript in the standard Latin spelling for Uzbek (re-rendered per user).
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS link_cache (
+            key TEXT PRIMARY KEY,
+            title TEXT,
+            audio_file_id TEXT,
+            audio_cached_at TEXT,
+            transcript TEXT,
+            detected_language TEXT,
+            transcript_cached_at TEXT
+        )
+    """)
+
     # Keyed by a hash of the source text (not the text itself - transcripts
     # can be long) plus the language pair, so an identical translation
     # request - a double-tap, a retry after a transient failure, or
@@ -395,6 +414,64 @@ def get_stats_today() -> dict:
         "requests_today": requests_today, "active_users": active_users,
         "total_users": total_users, "total_transcripts": total_transcripts,
     }
+
+
+# How long a saved result stays usable. Audio file_ids are long-lived; a
+# transcript is kept shorter so a weak result (e.g. produced while the best
+# models' daily quota was used up) doesn't stick forever.
+LINK_AUDIO_TTL_DAYS = 60
+LINK_TRANSCRIPT_TTL_DAYS = 14
+
+
+def get_link_cache(key):
+    """Saved result for this video, or None. Expired parts come back as None."""
+    connection = get_connection()
+    row = connection.execute("""
+        SELECT title,
+               CASE WHEN audio_cached_at >= datetime('now', ?) THEN audio_file_id END,
+               CASE WHEN transcript_cached_at >= datetime('now', ?) THEN transcript END,
+               detected_language
+        FROM link_cache WHERE key = ?
+    """, (f"-{LINK_AUDIO_TTL_DAYS} days", f"-{LINK_TRANSCRIPT_TTL_DAYS} days", key)).fetchone()
+    connection.close()
+
+    if not row or not (row[1] or row[2]):
+        return None
+
+    return {"title": row[0], "audio_file_id": row[1], "transcript": row[2], "detected_language": row[3]}
+
+
+def save_link_audio(key, title, audio_file_id):
+    connection = get_connection()
+    connection.execute("""
+        INSERT INTO link_cache (key, title, audio_file_id, audio_cached_at) VALUES (?, ?, ?, datetime('now'))
+        ON CONFLICT(key) DO UPDATE SET title = excluded.title, audio_file_id = excluded.audio_file_id,
+                                       audio_cached_at = excluded.audio_cached_at
+    """, (key, title, audio_file_id))
+    connection.commit()
+    connection.close()
+
+
+def save_link_transcript(key, transcript, detected_language, title=None):
+    connection = get_connection()
+    connection.execute("""
+        INSERT INTO link_cache (key, title, transcript, detected_language, transcript_cached_at)
+        VALUES (?, ?, ?, ?, datetime('now'))
+        ON CONFLICT(key) DO UPDATE SET transcript = excluded.transcript,
+                                       detected_language = excluded.detected_language,
+                                       transcript_cached_at = excluded.transcript_cached_at,
+                                       title = COALESCE(link_cache.title, excluded.title)
+    """, (key, title, transcript, detected_language))
+    connection.commit()
+    connection.close()
+
+
+def forget_link_audio(key):
+    """Telegram no longer accepts the saved file_id - stop offering it."""
+    connection = get_connection()
+    connection.execute("UPDATE link_cache SET audio_file_id = NULL WHERE key = ?", (key,))
+    connection.commit()
+    connection.close()
 
 
 def get_total_usage_today():
