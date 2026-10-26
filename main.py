@@ -24,6 +24,7 @@ from handlers.command_handler import (
     build_shortcuts_keyboard,
     privacy_command,
     feedback_command,
+    stats_command,
     request_delete_data_callback,
     confirm_delete_data_callback,
     cancel_delete_data_callback,
@@ -178,6 +179,8 @@ def main():
     application.add_handler(CommandHandler("language", language_command))
     application.add_handler(CommandHandler("privacy", privacy_command))
     application.add_handler(CommandHandler("feedback", feedback_command))
+    # Owner-only (checked inside); deliberately not in the public command menu.
+    application.add_handler(CommandHandler("stats", stats_command))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_link))
     # Anything else a user might send directly (voice note, video file,
     # photo, document, sticker) - previously unhandled entirely, meaning

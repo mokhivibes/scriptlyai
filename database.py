@@ -1,4 +1,6 @@
 import sqlite3
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 DATABASE_NAME = "bot.db"
 
@@ -85,6 +87,29 @@ def init_database():
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS capacity_alerts (
             alert_date TEXT PRIMARY KEY
+        )
+    """)
+
+    # Per-day counters for the Gemini free-tier quotas (see
+    # services/speech_service.py) - `day` is the GOOGLE quota day (Pacific
+    # time, where Google's daily quotas reset), not UTC. Keys: cluster,
+    # done:<tier>, id_calls, gemini_failed, quota_hit:<model>.
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS gemini_counters (
+            day TEXT NOT NULL,
+            key TEXT NOT NULL,
+            count INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (day, key)
+        )
+    """)
+
+    # Which owner alerts were already sent on which Google quota day, so
+    # each fires once a day (same idea as capacity_alerts above).
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS owner_alerts_sent (
+            day TEXT NOT NULL,
+            kind TEXT NOT NULL,
+            PRIMARY KEY (day, kind)
         )
     """)
 
@@ -303,6 +328,73 @@ def decrement_daily_usage(user_id):
 
     connection.commit()
     connection.close()
+
+
+GOOGLE_QUOTA_TZ = ZoneInfo("America/Los_Angeles")
+OWNER_TZ = ZoneInfo("Asia/Tashkent")
+
+
+def google_quota_day() -> str:
+    return datetime.now(GOOGLE_QUOTA_TZ).strftime("%Y-%m-%d")
+
+
+def next_quota_reset():
+    """(timedelta until Google's daily quotas reset, that moment in Tashkent time)."""
+    now = datetime.now(GOOGLE_QUOTA_TZ)
+    reset = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    return reset - now, reset.astimezone(OWNER_TZ)
+
+
+def bump_counter(key, amount=1):
+    connection = get_connection()
+    connection.execute("""
+        INSERT INTO gemini_counters (day, key, count) VALUES (?, ?, ?)
+        ON CONFLICT(day, key) DO UPDATE SET count = count + excluded.count
+    """, (google_quota_day(), key, amount))
+    connection.commit()
+    connection.close()
+
+
+def get_counters(day=None) -> dict:
+    connection = get_connection()
+    rows = connection.execute(
+        "SELECT key, count FROM gemini_counters WHERE day = ?", (day or google_quota_day(),)
+    ).fetchall()
+    connection.close()
+    return dict(rows)
+
+
+def owner_alert_already_sent(kind) -> bool:
+    connection = get_connection()
+    row = connection.execute(
+        "SELECT 1 FROM owner_alerts_sent WHERE day = ? AND kind = ?", (google_quota_day(), kind)
+    ).fetchone()
+    connection.close()
+    return row is not None
+
+
+def mark_owner_alert_sent(kind):
+    connection = get_connection()
+    connection.execute(
+        "INSERT OR IGNORE INTO owner_alerts_sent (day, kind) VALUES (?, ?)", (google_quota_day(), kind)
+    )
+    connection.commit()
+    connection.close()
+
+
+def get_stats_today() -> dict:
+    """Bot-wide numbers for the owner's /stats (UTC day, like daily_usage)."""
+    connection = get_connection()
+    requests_today, active_users = connection.execute("""
+        SELECT COALESCE(SUM(request_count), 0), COUNT(*) FROM daily_usage WHERE usage_date = date('now')
+    """).fetchone()
+    total_users = connection.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+    total_transcripts = connection.execute("SELECT COUNT(*) FROM transcripts").fetchone()[0]
+    connection.close()
+    return {
+        "requests_today": requests_today, "active_users": active_users,
+        "total_users": total_users, "total_transcripts": total_transcripts,
+    }
 
 
 def get_total_usage_today():

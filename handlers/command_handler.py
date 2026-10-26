@@ -3,7 +3,10 @@ import time
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
-from database import get_transcripts_for_user, get_interface_language, set_interface_language, delete_user_data
+from database import (
+    get_transcripts_for_user, get_interface_language, set_interface_language, delete_user_data,
+    get_counters, get_stats_today, next_quota_reset,
+)
 from utils import messages as msg
 from utils.network_retry import call_with_retry
 from utils.stickers import STICKER_WELCOME
@@ -243,3 +246,42 @@ async def feedback_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
     await call_with_retry(update.message.reply_text, msg.t(lang, "FEEDBACK_THANKS"))
+
+
+async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Owner-only usage report (not in the command menu). Silent for everyone else."""
+
+    user = update.effective_user
+    if not OWNER_USER_ID or not user or user.id != OWNER_USER_ID:
+        return
+
+    stats = get_stats_today()
+    counters = get_counters()
+    left, reset_local = next_quota_reset()
+    hours, minutes = divmod(int(left.total_seconds()) // 60, 60)
+
+    best = counters.get("done:transcribe", 0)
+    flash = counters.get("done:flash", 0)
+    lite = counters.get("done:lite", 0)
+    lite_calls = counters.get("id_calls", 0) + lite
+    flags = {
+        "best": " (quota reached)" if counters.get("quota_hit:gemini-3.5-transcribe") else "",
+        "flash": " (quota reached)" if counters.get("quota_hit:gemini-3.5-flash") else "",
+    }
+
+    text = (
+        "📊 ScriptlyAI today\n\n"
+        f"Bot (UTC day)\n"
+        f"• Transcription requests: {stats['requests_today']}\n"
+        f"• Active users: {stats['active_users']}\n"
+        f"• All users ever: {stats['total_users']}  |  saved transcripts: {stats['total_transcripts']}\n\n"
+        "Uzbek / Kazakh / Kyrgyz clips (Google quota day)\n"
+        f"• Clips sent to Gemini: {counters.get('cluster', 0)}\n"
+        f"• Best model: {best} of 25{flags['best']}\n"
+        f"• Flash: {flash} of 20{flags['flash']}\n"
+        f"• Flash-lite: {lite} transcripts, {lite_calls} calls of ~500\n"
+        f"• Gemini gave nothing: {counters.get('gemini_failed', 0)}\n\n"
+        f"Quotas reset at {reset_local:%H:%M} Tashkent (in {hours}h {minutes}m).\n"
+        "Counts cover only this bot's own calls."
+    )
+    await call_with_retry(update.message.reply_text, text)

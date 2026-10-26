@@ -9,6 +9,7 @@ import time
 import requests
 
 from config import GROQ_API_KEY, GEMINI_API_KEY
+from database import bump_counter
 from services.audio_service import FFPROBE_PATH
 from utils.uzbek_script import cyrillic_to_latin
 from utils.network_retry import call_sync_with_retry
@@ -379,6 +380,15 @@ _KAZAKH_ONLY_LETTERS = set("әғқһіӘҒҚҺІ")
 _UZBEK_ONLY_LETTERS = set("ўҳЎҲ")
 
 
+def _count(key: str):
+    """Usage counter for the owner's /stats and quota alerts - must never
+    break a transcription."""
+    try:
+        bump_counter(key)
+    except Exception:
+        logger.warning(f"Could not record usage counter {key}")
+
+
 def _get_audio_duration_seconds(audio_path: str):
     try:
         result = subprocess.run(
@@ -461,6 +471,7 @@ def _gemini_post(model: str, headers: dict, body: dict, timeout: int):
         if response.status_code == 429:
             if "PerDay" in response.text:
                 state["paused_until"] = time.time() + GEMINI_DAILY_QUOTA_PAUSE_SECONDS
+                _count(f"quota_hit:{model}")
                 logger.warning(f"Gemini daily free quota exhausted for {model} - pausing it for an hour")
                 return None
             logger.info(f"Gemini {model} rate limited (attempt {attempt + 1}) - retrying")
@@ -491,6 +502,7 @@ def _gemini_identify_language(file_info: dict, mime: str, headers: dict):
             return None
         word = " ".join(part.get("text", "") for part in _gemini_parts(response))
         word = word.strip().lower().strip(".!\"' ")
+        _count("id_calls")
         return _GEMINI_ID_WORDS.get(word, "other") if word else None
     except Exception:
         logger.exception("Gemini language lookup failed")
@@ -578,20 +590,27 @@ def _try_gemini_fallback(audio_path: str):
         hint_key = identified if identified in _GEMINI_HINTS else None
 
         text = None
+        source = None
         if hint_key:
             text = _gemini_transcribe_dedicated(file_info, mime, headers, hint_key)
-            if not text:
+            if text:
+                source = "transcribe"
+            else:
                 logger.info("Dedicated Gemini transcribe gave nothing (quota or empty) - trying the general models")
         for model in (GEMINI_FLASH_MODEL, GEMINI_LITE_MODEL):
             if text:
                 break
             text = _gemini_transcribe_prompted(model, file_info, mime, headers, hint_key)
             if text:
+                source = "flash" if model == GEMINI_FLASH_MODEL else "lite"
                 logger.info(f"Transcribed with {model}")
 
         if not text:
             logger.warning("Gemini produced no transcript - falling back")
+            _count("gemini_failed")
             return None, identified
+
+        _count(f"done:{source}")
 
         language = hint_key or _language_from_script(text)
         if language == "uz":
@@ -730,6 +749,7 @@ def transcribe_audio(audio_path: str, language: str = None, on_uzbek_fallback_st
 
     if language is None and text and detected_language in UZBEK_MISDETECTION_CLUSTER:
         logger.info(f"Groq detected '{detected_language}' (in Uzbek misdetection cluster) - trying local fallbacks")
+        _count("cluster")
 
         if on_uzbek_fallback_start:
             try:

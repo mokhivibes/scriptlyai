@@ -32,6 +32,10 @@ from database import (
     decrement_daily_usage,
     get_total_usage_today,
     has_sent_capacity_alert_today,
+    get_counters,
+    owner_alert_already_sent,
+    mark_owner_alert_sent,
+    next_quota_reset,
     mark_capacity_alert_sent,
 )
 from utils.network_retry import call_with_retry, call_sync_with_retry
@@ -401,6 +405,56 @@ async def _maybe_alert_owner_of_capacity(context):
         )
     except Exception:
         logger.exception("Failed to send owner capacity alert - continuing")
+
+
+def _reset_text() -> str:
+    left, reset_local = next_quota_reset()
+    hours, minutes = divmod(int(left.total_seconds()) // 60, 60)
+    return f"Google's daily quotas reset at {reset_local:%H:%M} Tashkent time (in {hours}h {minutes}m)."
+
+
+async def _maybe_alert_owner_of_gemini(context):
+    """
+    Best-effort DMs to OWNER_USER_ID about the Gemini free-tier quotas (see
+    services/speech_service.py), each at most once per Google quota day:
+      - the best model's 25/day is used up   -> later clips use flash (20/day)
+      - flash's 20/day is used up too (45)   -> later clips use weaker flash-lite
+      - flash-lite approaching its ~500/day cap
+      - Gemini returning nothing repeatedly
+    Never raises - a failed notification must not break the request.
+    """
+
+    if not OWNER_USER_ID:
+        return
+
+    try:
+        counters = get_counters()
+        lite_calls = counters.get("id_calls", 0) + counters.get("done:lite", 0)
+        clips = counters.get("cluster", 0)
+
+        alerts = []
+        if counters.get("quota_hit:gemini-3.5-transcribe") and not owner_alert_already_sent("best_quota"):
+            alerts.append(("best_quota",
+                f"🔔 The best Gemini transcription quota (25/day) is used up. Uzbek/Kazakh/Kyrgyz clips now use "
+                f"gemini-3.5-flash (20/day). Clips so far today: {clips}. {_reset_text()}"))
+        if counters.get("quota_hit:gemini-3.5-flash") and not owner_alert_already_sent("flash_quota"):
+            alerts.append(("flash_quota",
+                f"⚠️ All ~45 higher-quality Gemini transcriptions for today are used. From now on Uzbek/Kazakh/Kyrgyz "
+                f"clips use the weaker gemini-3.5-flash-lite until the reset. Clips so far today: {clips}. {_reset_text()} "
+                "If this happens most days, consider turning on Google billing (about $0.003 per minute)."))
+        if lite_calls >= 400 and not owner_alert_already_sent("lite_high"):
+            alerts.append(("lite_high",
+                f"⚠️ gemini-3.5-flash-lite is at about {lite_calls} of its ~500 free calls today. {_reset_text()}"))
+        if counters.get("gemini_failed", 0) >= 3 and not owner_alert_already_sent("gemini_failed"):
+            alerts.append(("gemini_failed",
+                f"⚠️ Gemini returned no transcript {counters['gemini_failed']} times today - those clips fell back "
+                "to the slower/weaker path. Check the server log."))
+
+        for kind, text in alerts:
+            mark_owner_alert_sent(kind)
+            await context.bot.send_message(chat_id=OWNER_USER_ID, text=text)
+    except Exception:
+        logger.exception("Failed to send owner Gemini alert - continuing")
 
 
 # Persistent-reply-keyboard shortcut labels ("❓ Help" etc.) aren't real
@@ -800,6 +854,8 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
         transcript, detected_language = await asyncio.to_thread(
             transcribe_audio, audio_path, on_uzbek_fallback_start=_on_uzbek_fallback_start
         )
+
+        await _maybe_alert_owner_of_gemini(context)
 
         if not transcript.strip():
             decrement_daily_usage(user_id)
