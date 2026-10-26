@@ -1,9 +1,15 @@
+import json
 import logging
 import os
+import re
+import subprocess
+import threading
+import time
 
 import requests
 
-from config import GROQ_API_KEY
+from config import GROQ_API_KEY, GEMINI_API_KEY
+from services.audio_service import FFPROBE_PATH
 from utils.network_retry import call_sync_with_retry
 
 logger = logging.getLogger(__name__)
@@ -304,6 +310,200 @@ def _try_kazakh_fallback(audio_path: str):
         logger.exception("Kazakh fallback transcription failed - keeping Groq's result")
         return None
 
+# --- Gemini 3.5 Transcribe (first choice for the Uzbek cluster) ---
+#
+# Measured 2026-10-26 on a real 2.5-minute Uzbek reel: Gemini returned a
+# clean, correct transcript in ~3s, versus ~18 minutes for the three local
+# models run one after another on the production VPS (a shared 4-vCPU CPU
+# decodes Whisper-medium at ~4.5x slower than real time). Its free tier
+# allows only 3 generate requests per minute per project, so calls are
+# serialized and spaced below. Auto-detection returns an empty transcript
+# (a known Google-side bug), so the three candidate languages are passed
+# as hints instead - given all three it picked Uzbek on the Uzbek clip.
+GEMINI_BASE_URL = "https://generativelanguage.googleapis.com"
+GEMINI_MODEL = "gemini-3.5-transcribe"
+GEMINI_LANGUAGE_HINTS = ["uz-UZ", "kk-KZ", "ky-KG"]
+GEMINI_MIN_SECONDS_BETWEEN_CALLS = 21  # 3 requests/minute on the free tier
+GEMINI_MAX_RATE_LIMIT_RETRIES = 2
+GEMINI_MAX_AUDIO_SECONDS = 55 * 60  # the model accepts up to 1 hour per request
+GEMINI_REQUEST_TIMEOUT = 180
+GEMINI_DAILY_QUOTA_PAUSE_SECONDS = 3600
+
+# Without Gemini, the slow local models only run on clips short enough to
+# finish in a few minutes - longer ones keep Groq's own result instead.
+LOCAL_FALLBACK_MAX_SECONDS = 60
+
+_GEMINI_MIME_TYPES = {
+    ".mp3": "audio/mp3", ".wav": "audio/wav", ".ogg": "audio/ogg", ".oga": "audio/ogg",
+    ".opus": "audio/ogg", ".m4a": "audio/mp4", ".mp4": "audio/mp4", ".flac": "audio/flac",
+    ".aac": "audio/aac",
+}
+
+_gemini_lock = threading.Lock()
+_gemini_last_call_at = 0.0
+_gemini_paused_until = 0.0
+
+# Letters that exist in Kazakh but not Kyrgyz; Kyrgyz shares only ү/ө/ң.
+_KAZAKH_ONLY_LETTERS = set("әғқһіӘҒҚҺІ")
+
+
+# Standard Uzbek Cyrillic -> Latin mapping, used only to tidy stray Cyrillic
+# words inside an otherwise-Latin Uzbek transcript (see _try_gemini_fallback).
+_CYRILLIC_TO_LATIN = {
+    "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ё": "yo", "ж": "j",
+    "з": "z", "и": "i", "й": "y", "к": "k", "л": "l", "м": "m", "н": "n", "о": "o",
+    "п": "p", "р": "r", "с": "s", "т": "t", "у": "u", "ф": "f", "х": "x", "ц": "s",
+    "ч": "ch", "ш": "sh", "щ": "sh", "ъ": "'", "ь": "", "ы": "i", "э": "e", "ю": "yu",
+    "я": "ya", "ў": "o'", "қ": "q", "ғ": "g'", "ҳ": "h",
+}
+
+
+def _latinize_stray_cyrillic(text: str) -> str:
+    def convert_word(match):
+        word = match.group(0)
+        out = "".join(_CYRILLIC_TO_LATIN.get(ch.lower(), ch) for ch in word)
+        # Keep a leading capital ("Голубика" -> "Golubika"); ALL-CAPS words stay upper.
+        if word.isupper() and len(word) > 1:
+            return out.upper()
+        return out[:1].upper() + out[1:] if word[:1].isupper() else out
+
+    return re.sub(r"[\u0400-\u04ff]+", convert_word, text)
+
+
+def _get_audio_duration_seconds(audio_path: str):
+    try:
+        result = subprocess.run(
+            [FFPROBE_PATH, "-v", "error", "-show_entries", "format=duration",
+             "-of", "default=noprint_wrappers=1:nokey=1", audio_path],
+            capture_output=True, text=True, timeout=30,
+        )
+        return float(result.stdout.strip())
+    except Exception:
+        return None
+
+
+def _language_from_script(text: str) -> str:
+    """Gemini doesn't report which language it chose, so infer a label from
+    the script: Latin -> Uzbek, Kazakh-only Cyrillic letters -> Kazakh,
+    other Cyrillic -> Kyrgyz. Only a label (history/export), not a decision."""
+    cyrillic = sum(1 for ch in text if "\u0400" <= ch <= "\u04ff")
+    latin = sum(1 for ch in text if ch.isascii() and ch.isalpha())
+    if latin >= cyrillic:
+        return "uz"
+    return "kk" if any(ch in _KAZAKH_ONLY_LETTERS for ch in text) else "ky"
+
+
+def _gemini_upload(audio_path: str, headers: dict):
+    mime = _GEMINI_MIME_TYPES.get(os.path.splitext(audio_path)[1].lower(), "audio/mp3")
+    with open(audio_path, "rb") as audio_file:
+        data = audio_file.read()
+
+    start = requests.post(
+        f"{GEMINI_BASE_URL}/upload/v1beta/files",
+        headers={**headers, "X-Goog-Upload-Protocol": "resumable", "X-Goog-Upload-Command": "start",
+                 "X-Goog-Upload-Header-Content-Length": str(len(data)),
+                 "X-Goog-Upload-Header-Content-Type": mime, "Content-Type": "application/json"},
+        json={"file": {"display_name": "audio"}}, timeout=60,
+    )
+    start.raise_for_status()
+    upload = requests.post(
+        start.headers["x-goog-upload-url"],
+        headers={"Content-Length": str(len(data)), "X-Goog-Upload-Offset": "0",
+                 "X-Goog-Upload-Command": "upload, finalize"},
+        data=data, timeout=GEMINI_REQUEST_TIMEOUT,
+    )
+    upload.raise_for_status()
+    file_info = upload.json()["file"]
+
+    for _ in range(30):
+        if file_info.get("state") != "PROCESSING":
+            break
+        time.sleep(2)
+        file_info = requests.get(f"{GEMINI_BASE_URL}/v1beta/{file_info['name']}", headers=headers, timeout=30).json()
+
+    return file_info, mime
+
+
+def _try_gemini_fallback(audio_path: str):
+    """
+    Transcribes with Gemini 3.5 Transcribe, hinting Uzbek/Kazakh/Kyrgyz.
+    Returns (text, language_label), or None on ANY failure (no key, quota,
+    rate limit exhausted, empty result, network) so the caller carries on to
+    the local models / Groq's own result - this must never make things worse.
+
+    The uploaded copy is deleted from Google's side right after use.
+    Calls are serialized and spaced to stay under the free tier's
+    3 requests/minute; a daily-quota error pauses Gemini for an hour so
+    users aren't made to wait on a call that can't succeed.
+    """
+
+    global _gemini_last_call_at, _gemini_paused_until
+
+    if not GEMINI_API_KEY or time.time() < _gemini_paused_until:
+        return None
+
+    duration = _get_audio_duration_seconds(audio_path)
+    if duration is not None and duration > GEMINI_MAX_AUDIO_SECONDS:
+        logger.info(f"Audio too long for Gemini ({duration:.0f}s) - skipping")
+        return None
+
+    headers = {"x-goog-api-key": GEMINI_API_KEY}
+    file_name = None
+
+    try:
+        file_info, mime = _gemini_upload(audio_path, headers)
+        file_name = file_info.get("name")
+        body = {
+            "contents": [{"parts": [{"fileData": {"fileUri": file_info["uri"], "mimeType": mime}}]}],
+            "generationConfig": {"audioTranscriptionConfig": {"languageCodes": GEMINI_LANGUAGE_HINTS}},
+        }
+
+        for attempt in range(GEMINI_MAX_RATE_LIMIT_RETRIES + 1):
+            with _gemini_lock:
+                wait = GEMINI_MIN_SECONDS_BETWEEN_CALLS - (time.time() - _gemini_last_call_at)
+                if wait > 0:
+                    time.sleep(wait)
+                _gemini_last_call_at = time.time()
+                response = requests.post(
+                    f"{GEMINI_BASE_URL}/v1beta/models/{GEMINI_MODEL}:generateContent",
+                    headers=headers, json=body, timeout=GEMINI_REQUEST_TIMEOUT,
+                )
+
+            if response.status_code == 429:
+                if "PerDay" in response.text:
+                    _gemini_paused_until = time.time() + GEMINI_DAILY_QUOTA_PAUSE_SECONDS
+                    logger.warning("Gemini daily free quota exhausted - pausing Gemini for an hour")
+                    return None
+                logger.info(f"Gemini rate limited (attempt {attempt + 1}) - retrying")
+                continue
+
+            response.raise_for_status()
+            parts = (response.json().get("candidates") or [{}])[0].get("content", {}).get("parts", [])
+            text = " ".join(
+                part.get("audioTranscription", {}).get("text", "") for part in parts
+            ).strip()
+
+            if not text:
+                logger.info("Gemini returned an empty transcript - falling back")
+                return None
+            language = _language_from_script(text)
+            if language == "uz":
+                text = _latinize_stray_cyrillic(text)
+            return text, language
+
+        logger.warning("Gemini still rate limited after retries - falling back")
+        return None
+    except Exception:
+        logger.exception("Gemini transcription failed - falling back")
+        return None
+    finally:
+        if file_name:
+            try:
+                requests.delete(f"{GEMINI_BASE_URL}/v1beta/{file_name}", headers=headers, timeout=30)
+            except Exception:
+                logger.warning("Could not delete the uploaded audio from Gemini's file store")
+
+
 # Groq's API returns the detected language as a full English name (e.g.
 # "English", "Arabic") - local faster-whisper returned a two-letter ISO
 # 639-1 code (e.g. "en", "ar"), which the rest of the codebase (export's
@@ -432,6 +632,18 @@ def transcribe_audio(audio_path: str, language: str = None, on_uzbek_fallback_st
                 on_uzbek_fallback_start()
             except Exception:
                 logger.exception("on_uzbek_fallback_start callback failed - continuing with transcription")
+
+        gemini_result = _try_gemini_fallback(audio_path)
+        if gemini_result:
+            return gemini_result
+
+        duration = _get_audio_duration_seconds(audio_path)
+        if duration is not None and duration > LOCAL_FALLBACK_MAX_SECONDS:
+            logger.info(
+                f"Gemini unavailable and audio is {duration:.0f}s - too long for the slow local "
+                "models, keeping Groq's result"
+            )
+            return text, detected_language
 
         for candidate_language, try_fallback in _FALLBACK_CANDIDATES:
             fallback_text = try_fallback(audio_path)

@@ -223,7 +223,11 @@ PRIVACY_TEXT = (
     "*Nimalarni saqlamayman*\n\n"
     "• Video yoki audio faylning oʻzi — qayta ishlangandan keyin darhol oʻchiriladi, har safar\n"
     "• Siz menga yubormagan hech narsa\n\n"
-    "Maʼlumotlaringiz hech qachon sotilmaydi yoki ulashilmaydi. Istalgan vaqtda hammasini oʻchirishingiz mumkin."
+    "*Audiongizni kim qayta ishlaydi*\n\n"
+    "• Groq — matnga aylantirish va tozalash\n"
+    "• Oʻzbek, qozoq yoki qirgʻiz tiliga oʻxshash audio uchun Google Gemini API ham ishlatiladi — Googleʼning bepul tarifi yuborilgan audiodan oʻz mahsulotlarini yaxshilash uchun foydalanishi mumkin\n\n"
+    "Fayl qayta ishlangandan keyin darhol mendan va Googleʼning fayl saqlash joyidan ham oʻchiriladi.\n\n"
+    "Maʼlumotlaringiz hech qachon sotilmaydi. Istalgan vaqtda hammasini oʻchirishingiz mumkin."
 )
 DELETE_DATA_BUTTON = "🗑 Maʼlumotlarimni oʻchirish"
 DELETE_DATA_CONFIRM_PROMPT = (

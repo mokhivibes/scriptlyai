@@ -268,7 +268,11 @@ PRIVACY_TEXT = (
     "*What I don't store*\n\n"
     "• The video or audio file itself — deleted right after processing, every time\n"
     "• Anything you haven't sent me\n\n"
-    "Your data is never sold or shared. You can delete everything below, anytime."
+    "*Who processes your audio*\n\n"
+    "• Groq — transcription and clean-up\n"
+    "• For audio that sounds like Uzbek, Kazakh or Kyrgyz, also Google's Gemini API — Google's free tier may use submitted audio to improve its products\n\n"
+    "The file is deleted from my side right after processing, and from Google's file store too.\n\n"
+    "Your data is never sold. You can delete everything below, anytime."
 )
 DELETE_DATA_BUTTON = "🗑 Delete my data"
 DELETE_DATA_CONFIRM_PROMPT = (

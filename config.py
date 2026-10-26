@@ -17,6 +17,11 @@ GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 if not GROQ_API_KEY:
     raise ValueError("GROQ_API_KEY is not set in the .env file")
 
+# Optional - Google AI Studio key for Gemini 3.5 Transcribe, used only for
+# audio Groq places in the Uzbek/Kazakh/Kyrgyz cluster (see
+# services/speech_service.py). Without it, the slower local models are used.
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
 # Relative to the project root, same as bot.db/downloads/logs - resolves
 # correctly under both manual `python main.py` and the launchd deployment,
 # since WorkingDirectory is set to the project root either way.
