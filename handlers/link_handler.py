@@ -34,6 +34,7 @@ from database import (
 from utils.network_retry import call_with_retry, call_sync_with_retry
 from utils.stickers import STICKER_PROCESSING, STICKER_DONE, STICKER_ERROR
 from handlers.command_handler import help_command, history_command, language_command
+from utils.uzbek_script import display_alphabet, pipeline_alphabet
 from config import OWNER_USER_ID, BOT_USERNAME, YOUTUBE_COOKIES_PATH, YT_DLP_JS_RUNTIMES
 
 logger = logging.getLogger(__name__)
@@ -713,6 +714,12 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
         cleaned_transcript = await asyncio.to_thread(clean_transcript, transcript)
         logger.info(f"Cleaned transcript: {cleaned_transcript}")
 
+        # Cleanup ran on the standard Uzbek Latin; what the user sees (and
+        # what's stored for /history, Copy and exports) uses the revised
+        # alphabet - see utils/uzbek_script.py.
+        if detected_language == "uz":
+            cleaned_transcript = display_alphabet(cleaned_transcript)
+
         context.user_data["last_transcript"] = cleaned_transcript
         context.user_data["detected_language"] = detected_language
         # export_text/export_language track whatever's CURRENTLY on screen
@@ -1001,7 +1008,13 @@ async def _handle_translate_to(query, context, lang, target_code):
     )
 
     try:
-        translated = await asyncio.to_thread(translate_text, transcript, target_code, detected_language)
+        # Uzbek source text is shown in the revised alphabet, which Google
+        # Translate doesn't know - hand it the standard Latin and convert an
+        # Uzbek RESULT back to the revised alphabet.
+        source_text = pipeline_alphabet(transcript) if detected_language == "uz" else transcript
+        translated = await asyncio.to_thread(translate_text, source_text, target_code, detected_language)
+        if target_code == "uz":
+            translated = display_alphabet(translated)
         await send_result_text(query.message, msg.translation_header_parts(lang), translated)
         # "Translating..." has been superseded by the result just sent -
         # delete it now that it's actually landed, rather than leaving it
@@ -1045,7 +1058,11 @@ async def _handle_summarize(query, context, lang):
     )
 
     try:
-        summary = await asyncio.to_thread(summarize_transcript, transcript)
+        summary_is_uzbek = context.user_data.get("detected_language") == "uz"
+        summary_source = pipeline_alphabet(transcript) if summary_is_uzbek else transcript
+        summary = await asyncio.to_thread(summarize_transcript, summary_source)
+        if summary_is_uzbek:
+            summary = display_alphabet(summary)
         await send_result_text(query.message, msg.summary_header_parts(lang), summary)
         # "Summarizing..." has been superseded by the result just sent -
         # delete it now that it's actually landed (only after a successful

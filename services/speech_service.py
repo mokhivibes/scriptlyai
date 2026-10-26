@@ -10,6 +10,7 @@ import requests
 
 from config import GROQ_API_KEY, GEMINI_API_KEY
 from services.audio_service import FFPROBE_PATH
+from utils.uzbek_script import cyrillic_to_latin
 from utils.network_retry import call_sync_with_retry
 
 logger = logging.getLogger(__name__)
@@ -345,29 +346,8 @@ _gemini_paused_until = 0.0
 
 # Letters that exist in Kazakh but not Kyrgyz; Kyrgyz shares only ү/ө/ң.
 _KAZAKH_ONLY_LETTERS = set("әғқһіӘҒҚҺІ")
-
-
-# Standard Uzbek Cyrillic -> Latin mapping, used only to tidy stray Cyrillic
-# words inside an otherwise-Latin Uzbek transcript (see _try_gemini_fallback).
-_CYRILLIC_TO_LATIN = {
-    "а": "a", "б": "b", "в": "v", "г": "g", "д": "d", "е": "e", "ё": "yo", "ж": "j",
-    "з": "z", "и": "i", "й": "y", "к": "k", "л": "l", "м": "m", "н": "n", "о": "o",
-    "п": "p", "р": "r", "с": "s", "т": "t", "у": "u", "ф": "f", "х": "x", "ц": "s",
-    "ч": "ch", "ш": "sh", "щ": "sh", "ъ": "'", "ь": "", "ы": "i", "э": "e", "ю": "yu",
-    "я": "ya", "ў": "o'", "қ": "q", "ғ": "g'", "ҳ": "h",
-}
-
-
-def _latinize_stray_cyrillic(text: str) -> str:
-    def convert_word(match):
-        word = match.group(0)
-        out = "".join(_CYRILLIC_TO_LATIN.get(ch.lower(), ch) for ch in word)
-        # Keep a leading capital ("Голубика" -> "Golubika"); ALL-CAPS words stay upper.
-        if word.isupper() and len(word) > 1:
-            return out.upper()
-        return out[:1].upper() + out[1:] if word[:1].isupper() else out
-
-    return re.sub(r"[\u0400-\u04ff]+", convert_word, text)
+# ў and ҳ exist in Uzbek Cyrillic but in neither Kazakh nor Kyrgyz.
+_UZBEK_ONLY_LETTERS = set("ўҳЎҲ")
 
 
 def _get_audio_duration_seconds(audio_path: str):
@@ -384,11 +364,15 @@ def _get_audio_duration_seconds(audio_path: str):
 
 def _language_from_script(text: str) -> str:
     """Gemini doesn't report which language it chose, so infer a label from
-    the script: Latin -> Uzbek, Kazakh-only Cyrillic letters -> Kazakh,
-    other Cyrillic -> Kyrgyz. Only a label (history/export), not a decision."""
+    the script: Latin -> Uzbek; Cyrillic with ў/ҳ (Uzbek-only letters) ->
+    Uzbek; other Cyrillic with Kazakh-only letters -> Kazakh; the rest ->
+    Kyrgyz. Only a label (history/export/alphabet), not a transcription
+    decision."""
     cyrillic = sum(1 for ch in text if "\u0400" <= ch <= "\u04ff")
     latin = sum(1 for ch in text if ch.isascii() and ch.isalpha())
     if latin >= cyrillic:
+        return "uz"
+    if any(ch in _UZBEK_ONLY_LETTERS for ch in text):
         return "uz"
     return "kk" if any(ch in _KAZAKH_ONLY_LETTERS for ch in text) else "ky"
 
@@ -488,7 +472,7 @@ def _try_gemini_fallback(audio_path: str):
                 return None
             language = _language_from_script(text)
             if language == "uz":
-                text = _latinize_stray_cyrillic(text)
+                text = cyrillic_to_latin(text)
             return text, language
 
         logger.warning("Gemini still rate limited after retries - falling back")

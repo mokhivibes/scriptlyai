@@ -54,3 +54,8 @@ YOUTUBE_COOKIES_PATH = "youtube_cookies.txt"
 # explicitly. None (yt-dlp's own lookup) when it isn't there, e.g. on the Mac.
 _VENV_DENO = os.path.join(os.path.dirname(sys.executable), "deno")
 YT_DLP_JS_RUNTIMES = {"deno": {"path": _VENV_DENO}} if os.path.exists(_VENV_DENO) else None
+
+# Show Uzbek results in the revised Uzbek Latin alphabet (oʻ->ö, gʻ->ğ,
+# sh->ş, ch->ç; law signed 2026-10-21). False keeps the 1995 orthography.
+# See utils/uzbek_script.py.
+UZBEK_NEW_ALPHABET = True
