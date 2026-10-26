@@ -119,6 +119,10 @@ def _lang(user_id) -> str:
 # memory (a restart forgets it - the tap then asks for the link again).
 PENDING_TEXT_TTL_SECONDS = 3600
 
+# At most this many audios per user wait for a "Get text" tap; sending more
+# links discards the oldest waiting one (keeps disk use bounded).
+PENDING_PER_USER_MAX = 3
+
 
 def _pending_registry(context) -> dict:
     return context.application.bot_data.setdefault("pending_text", {})
@@ -839,7 +843,11 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
 
             if ask_first:
                 _purge_expired_pending(context)
-                _pending_registry(context)[token] = {
+                registry = _pending_registry(context)
+                mine = [t for t, info in registry.items() if info["user_id"] == user_id]
+                for old_token in mine[: max(0, len(mine) - PENDING_PER_USER_MAX + 1)]:
+                    _remove_file(registry.pop(old_token)["audio_path"])
+                registry[token] = {
                     "audio_path": audio_path, "title": video_title, "url": url, "platform": platform,
                     "platform_name": platform_name, "user_id": user_id, "created": time.time(),
                 }
@@ -1225,8 +1233,13 @@ async def _handle_export(query, context, lang, data):
         # caption's {file_format} comes from a fixed dict ("PDF"/"text
         # file"), never from the transcript content itself - safe.
         with open(filepath, "rb") as document_file:
+            # The on-disk name is unique per request (see unique_id above) but
+            # the user should receive a clean, recognisable file name.
             await call_with_retry(
-                query.message.reply_document, document=document_file, **_caption_kwargs(caption)
+                query.message.reply_document,
+                document=document_file,
+                filename="ScriptlyAI_transcript" + os.path.splitext(filepath)[1],
+                **_caption_kwargs(caption),
             )
 
     except Exception as error:

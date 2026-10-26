@@ -13,6 +13,7 @@ from database import bump_counter
 from services.audio_service import FFPROBE_PATH
 from utils.uzbek_script import cyrillic_to_latin
 from utils.network_retry import call_sync_with_retry
+from services.groq_chat import _retry_wait, MAX_WAIT_SECONDS as GROQ_MAX_WAIT_SECONDS
 
 logger = logging.getLogger(__name__)
 
@@ -468,6 +469,11 @@ def _gemini_post(model: str, headers: dict, body: dict, timeout: int):
                 headers=headers, json=body, timeout=timeout,
             )
 
+        if response.status_code >= 500:
+            logger.info(f"Gemini {model} server error {response.status_code} (attempt {attempt + 1}) - retrying")
+            time.sleep(3)
+            continue
+
         if response.status_code == 429:
             if "PerDay" in response.text:
                 state["paused_until"] = time.time() + GEMINI_DAILY_QUOTA_PAUSE_SECONDS
@@ -480,7 +486,7 @@ def _gemini_post(model: str, headers: dict, body: dict, timeout: int):
         response.raise_for_status()
         return response
 
-    logger.warning(f"Gemini {model} still rate limited after retries")
+    logger.warning(f"Gemini {model} unavailable (rate limited or server errors) after retries")
     return None
 
 
@@ -592,15 +598,22 @@ def _try_gemini_fallback(audio_path: str):
         text = None
         source = None
         if hint_key:
-            text = _gemini_transcribe_dedicated(file_info, mime, headers, hint_key)
+            try:
+                text = _gemini_transcribe_dedicated(file_info, mime, headers, hint_key)
+            except Exception:
+                logger.exception("Dedicated Gemini transcribe failed")
             if text:
                 source = "transcribe"
             else:
-                logger.info("Dedicated Gemini transcribe gave nothing (quota or empty) - trying the general models")
+                logger.info("Dedicated Gemini transcribe gave nothing (quota, error or empty) - trying the general models")
         for model in (GEMINI_FLASH_MODEL, GEMINI_LITE_MODEL):
             if text:
                 break
-            text = _gemini_transcribe_prompted(model, file_info, mime, headers, hint_key)
+            try:
+                text = _gemini_transcribe_prompted(model, file_info, mime, headers, hint_key)
+            except Exception:
+                logger.exception(f"Gemini {model} failed - trying the next one")
+                text = None
             if text:
                 source = "flash" if model == GEMINI_FLASH_MODEL else "lite"
                 logger.info(f"Transcribed with {model}")
@@ -673,18 +686,31 @@ NO_SPEECH_THRESHOLD = 0.6
 
 
 def _transcribe(audio_path: str, language: str = None):
-    with open(audio_path, "rb") as audio_file:
-        data = {"model": MODEL_NAME, "response_format": "verbose_json"}
-        if language:
-            data["language"] = language
+    data = {"model": MODEL_NAME, "response_format": "verbose_json"}
+    if language:
+        data["language"] = language
 
-        response = requests.post(
-            GROQ_TRANSCRIPTION_URL,
-            headers={"Authorization": f"Bearer {GROQ_API_KEY}"},
-            files={"file": audio_file},
-            data=data,
-            timeout=120,
-        )
+    # A short "too many requests" from Groq (per-minute limits) is waited out,
+    # like the chat calls (see services/groq_chat.py); a long one - the hourly
+    # or daily audio cap - raises so the user gets the "busy, try later" reply.
+    for attempt in range(1, 4):
+        with open(audio_path, "rb") as audio_file:
+            response = requests.post(
+                GROQ_TRANSCRIPTION_URL,
+                headers={"Authorization": f"Bearer {GROQ_API_KEY}"},
+                files={"file": audio_file},
+                data=data,
+                timeout=120,
+            )
+
+        if response.status_code == 429:
+            wait = _retry_wait(response)
+            if attempt < 3 and wait <= GROQ_MAX_WAIT_SECONDS:
+                logger.info(f"Groq transcription rate limited - waiting {wait:.1f}s (attempt {attempt}/3)")
+                time.sleep(wait + 0.5)
+                continue
+
+        break
 
     response.raise_for_status()
     result = response.json()

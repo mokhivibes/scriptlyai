@@ -51,9 +51,21 @@ def detect_platform(url: str):
 _TRAILING_PUNCTUATION = ".,;:!?)]}>'\"\u00bb\u201d\u2019"
 
 
+# A link pasted without "https://" (youtu.be/abc, www.instagram.com/reel/x).
+# Only the supported platforms' own domains qualify, so ordinary text such as
+# "version 2.0" or "notes.txt" is never mistaken for a link.
+_BARE_LINK_PATTERN = re.compile(
+    r"(?<![\w@/.-])((?:[a-z0-9-]+\.)*"
+    r"(?:youtube\.com|youtu\.be|instagram\.com|instagr\.am|tiktok\.com|facebook\.com|fb\.watch|fb\.com|twitter\.com|x\.com)"
+    r"/[^\s]+)",
+    re.IGNORECASE,
+)
+
+
 def extract_url(text: str):
     """
-    Find the first URL inside a message.
+    Find the first URL inside a message (adding https:// to a bare
+    supported-platform link).
     """
 
     url_pattern = r"https?://[^\s]+"
@@ -62,5 +74,10 @@ def extract_url(text: str):
 
     if match:
         return match.group(0).rstrip(_TRAILING_PUNCTUATION)
+
+    bare = _BARE_LINK_PATTERN.search(text)
+
+    if bare:
+        return "https://" + bare.group(1).rstrip(_TRAILING_PUNCTUATION)
 
     return None
