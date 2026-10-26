@@ -221,7 +221,7 @@ PRIVACY_TEXT = (
     "• Tanlangan interfeys tili — keyingi safar eslab qolish uchun\n"
     "• Siz olgan matnlar (platforma, aniqlangan til, sarlavha, sana) — /history ishlashi uchun\n\n"
     "*Nimalarni saqlamayman*\n\n"
-    "• Video yoki audio faylning oʻzi — qayta ishlangandan keyin darhol oʻchiriladi, har safar\n"
+    "• Video yoki audio faylning oʻzi — qayta ishlangandan keyin darhol oʻchiriladi (“Matnini olish” tugmasini kutayotgan audio koʻpi bilan bir soatdan keyin oʻchiriladi)\n"
     "• Siz menga yubormagan hech narsa\n\n"
     "*Audiongizni kim qayta ishlaydi*\n\n"
     "• Groq — matnga aylantirish va tozalash\n"
@@ -316,3 +316,8 @@ ALPHABET_TO_NEW_BUTTON = "🔤 Yangi alifbo: ö ğ ş ç"
 ALPHABET_TO_OLD_BUTTON = "🔤 Eski alifbo: oʻ gʻ sh ch"
 ALPHABET_CHANGED_NEW = "🔤 Yangi alifboga oʻtildi (ö ğ ş ç)"
 ALPHABET_CHANGED_OLD = "🔤 Eski alifboga oʻtildi (oʻ gʻ sh ch)"
+
+# --- "Get text" on demand (links: audio first, transcribe only on tap) ---
+GET_TEXT_BUTTON = "📝 Matnini olish"
+AUDIO_CAPTION_ASK = "Mana men ajratib olgan audio 🎧\n\nMatni ham kerakmi? Quyidagi tugmani bosing 👇"
+GET_TEXT_EXPIRED = "⏳ Bu audio endi saqlanmagan (uni faqat bir soat saqlayman). Havolani qayta yuboring."

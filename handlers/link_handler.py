@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import time
 import uuid
 from urllib.parse import quote_plus
 
@@ -103,6 +104,37 @@ TRANSLATION_ENABLED = False
 
 def _lang(user_id) -> str:
     return get_interface_language(user_id) or msg.DEFAULT_LANGUAGE
+
+
+# --- "Get text" on demand ---
+#
+# For a pasted LINK the bot downloads and sends the audio first, with a
+# "Get text" button, and only transcribes when the user taps it (saves the
+# free Groq/Gemini quota - e.g. for people who just wanted a song's mp3).
+# The extracted audio waits on disk for up to an hour, tracked here in
+# memory (a restart forgets it - the tap then asks for the link again).
+PENDING_TEXT_TTL_SECONDS = 3600
+
+
+def _pending_registry(context) -> dict:
+    return context.application.bot_data.setdefault("pending_text", {})
+
+
+def _remove_file(path):
+    if path and os.path.exists(path):
+        try:
+            os.remove(path)
+        except OSError:
+            logger.warning(f"Failed to remove temp file: {path}")
+
+
+def _purge_expired_pending(context):
+    now = time.time()
+    registry = _pending_registry(context)
+    for token, info in list(registry.items()):
+        if now - info["created"] > PENDING_TEXT_TTL_SECONDS:
+            registry.pop(token, None)
+            _remove_file(info.get("audio_path"))
 
 
 def _alphabet_for(user_id) -> str:
@@ -550,7 +582,7 @@ async def handle_media_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await _process_link(message, context, None, "upload", "File", lang, update.effective_user.id, upload=upload)
 
 
-async def _process_link(message, context, url, platform, platform_name, lang, user_id, upload=None):
+async def _process_link(message, context, url, platform, platform_name, lang, user_id, upload=None, resume=None):
     """
     Runs the actual download -> extract -> transcribe -> clean -> export
     pipeline. Called either immediately (short content) or from the
@@ -568,13 +600,22 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
     # is required, not optional, or the user would stay stuck "busy"
     # forever with nothing actually running. See PER_USER_DAILY_LIMIT's
     # comment for why this cap exists at all.
-    if get_daily_usage_count(user_id) >= PER_USER_DAILY_LIMIT:
-        _mark_free(context)
-        await call_with_retry(message.reply_text, msg.t(lang, "DAILY_LIMIT_REACHED"), parse_mode="Markdown")
-        return
+    # `resume` = the user tapped "Get text" on audio sent earlier; `ask_first`
+    # = a pasted link, where we send the audio and wait for that tap instead
+    # of transcribing straight away. Only actual transcription counts toward
+    # the daily limit.
+    ask_first = upload is None and resume is None
 
-    increment_daily_usage(user_id)
-    await _maybe_alert_owner_of_capacity(context)
+    if not ask_first:
+        if get_daily_usage_count(user_id) >= PER_USER_DAILY_LIMIT:
+            _mark_free(context)
+            if resume:
+                _remove_file(resume["audio_path"])
+            await call_with_retry(message.reply_text, msg.t(lang, "DAILY_LIMIT_REACHED"), parse_mode="Markdown")
+            return
+
+        increment_daily_usage(user_id)
+        await _maybe_alert_owner_of_capacity(context)
 
     _mark_busy(context)
 
@@ -585,6 +626,7 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
     # nothing else ever removes them.
     video_path = None
     audio_path = None
+    keep_audio = False  # True when the audio must outlive this call (waiting for "Get text")
 
     # Captured (not discarded) so it can be deleted once STICKER_DONE takes
     # over its role - see the success path below for why.
@@ -595,7 +637,11 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
     # filling up with transient "still working on it" messages.
     # downloading_message returns (text, entities) - see its docstring
     # for why (branded platform icon via custom emoji entity).
-    if upload:
+    if resume:
+        status_message = await call_with_retry(
+            message.reply_text, msg.transcribing_message(lang), parse_mode="Markdown"
+        )
+    elif upload:
         status_message = await call_with_retry(
             message.reply_text, msg.t(lang, "DOWNLOADING_FILE"), parse_mode="Markdown"
         )
@@ -618,7 +664,11 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
         # utils/network_retry.py for why both layers exist and how
         # permanent failures (private/deleted video) are told apart from
         # transient ones.
-        if upload:
+        if resume:
+            audio_path = resume["audio_path"]
+            video_title = resume["title"]
+
+        elif upload:
             # ".upload" (not the real extension) so extract_audio's output
             # <name>.mp3 can never collide with the source when a user
             # sends an .mp3 - ffmpeg detects the format from content anyway.
@@ -674,22 +724,44 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
 
             video_path, video_title = await asyncio.to_thread(call_sync_with_retry, _download_instagram)
 
-        logger.info(f"Video downloaded: {video_path}")
+        if not resume:
+            logger.info(f"Video downloaded: {video_path}")
 
-        await call_with_retry(status_message.edit_text, msg.extracting_audio_message(lang), parse_mode="Markdown")
+            await call_with_retry(status_message.edit_text, msg.extracting_audio_message(lang), parse_mode="Markdown")
 
-        audio_path = await asyncio.to_thread(extract_audio, video_path)
+            audio_path = await asyncio.to_thread(extract_audio, video_path)
 
-        logger.info(f"Audio extracted: {audio_path}")
+            logger.info(f"Audio extracted: {audio_path}")
 
-        if not upload:
+        if not upload and not resume:
+            token = uuid.uuid4().hex[:12]
+            ask_markup = None
+            if ask_first:
+                ask_markup = InlineKeyboardMarkup([[
+                    InlineKeyboardButton(msg.t(lang, "GET_TEXT_BUTTON"), callback_data=f"get_text_{token}")
+                ]])
+
             with open(audio_path, "rb") as audio_file:
                 await call_with_retry(
                     message.reply_audio,
                     audio=audio_file,
                     filename=os.path.basename(audio_path),
-                    **_caption_kwargs(msg.t(lang, "AUDIO_CAPTION"))
+                    reply_markup=ask_markup,
+                    **_caption_kwargs(msg.t(lang, "AUDIO_CAPTION_ASK" if ask_first else "AUDIO_CAPTION"))
                 )
+
+            if ask_first:
+                _purge_expired_pending(context)
+                _pending_registry(context)[token] = {
+                    "audio_path": audio_path, "title": video_title, "url": url, "platform": platform,
+                    "platform_name": platform_name, "user_id": user_id, "created": time.time(),
+                }
+                keep_audio = True
+                logger.info(f"Audio sent, waiting for 'Get text' tap: token={token} user={user_id}")
+
+                await _delete_silently(processing_sticker_message)
+                await _delete_silently(status_message)
+                return
 
         await call_with_retry(status_message.edit_text, msg.transcribing_message(lang), parse_mode="Markdown")
 
@@ -826,12 +898,8 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
     finally:
         # Best-effort - a missing/already-removed file shouldn't mask
         # whatever the actual pipeline result was.
-        for path in (video_path, audio_path):
-            if path and os.path.exists(path):
-                try:
-                    os.remove(path)
-                except OSError:
-                    logger.warning(f"Failed to remove temp file: {path}")
+        for path in (video_path, None if keep_audio else audio_path):
+            _remove_file(path)
 
         _mark_free(context)
 
@@ -891,10 +959,39 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
                 await _handle_translate_to(query, context, lang, data.replace("translate_to_", ""))
         elif data == "summarize":
             await _handle_summarize(query, context, lang)
+        elif data.startswith("get_text_"):
+            await _handle_get_text(query, context, lang, data.replace("get_text_", ""))
         elif data.startswith("history_"):
             await _handle_history_select(query, context, lang, data.replace("history_", ""))
     finally:
         _mark_free(context)
+
+
+async def _handle_get_text(query, context, lang, token):
+    """The user tapped "Get text" under audio sent earlier - transcribe the
+    audio we kept for them (one-shot: _process_link deletes it when done)."""
+
+    registry = _pending_registry(context)
+    info = registry.get(token)
+
+    if not info or info["user_id"] != query.from_user.id or not os.path.exists(info["audio_path"]):
+        if info and info["user_id"] == query.from_user.id:
+            registry.pop(token, None)
+        await call_with_retry(query.message.reply_text, msg.t(lang, "GET_TEXT_EXPIRED"), parse_mode="Markdown")
+        return
+
+    registry.pop(token, None)
+
+    # Remove the button so a second tap can't start the same job twice.
+    try:
+        await query.edit_message_reply_markup(reply_markup=None)
+    except Exception:
+        logger.warning("Could not remove the Get text button")
+
+    await _process_link(
+        query.message, context, info["url"], info["platform"], info["platform_name"],
+        lang, query.from_user.id, resume=info,
+    )
 
 
 async def _handle_toggle_alphabet(query, context, lang):

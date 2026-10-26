@@ -266,7 +266,7 @@ PRIVACY_TEXT = (
     "• Your chosen interface language — so I remember it next time\n"
     "• Transcripts you've generated (platform, detected language, title, date) — so /history works\n\n"
     "*What I don't store*\n\n"
-    "• The video or audio file itself — deleted right after processing, every time\n"
+    "• The video or audio file itself — deleted right after processing (audio waiting for your “Get the text” tap is removed after an hour at most)\n"
     "• Anything you haven't sent me\n\n"
     "*Who processes your audio*\n\n"
     "• Groq — transcription and clean-up\n"
@@ -367,3 +367,8 @@ ALPHABET_TO_NEW_BUTTON = "🔤 New alphabet: ö ğ ş ç"
 ALPHABET_TO_OLD_BUTTON = "🔤 Old alphabet: oʻ gʻ sh ch"
 ALPHABET_CHANGED_NEW = "🔤 Switched to the new alphabet (ö ğ ş ç)"
 ALPHABET_CHANGED_OLD = "🔤 Switched to the old alphabet (oʻ gʻ sh ch)"
+
+# --- "Get text" on demand (links: audio first, transcribe only on tap) ---
+GET_TEXT_BUTTON = "📝 Get the text"
+AUDIO_CAPTION_ASK = "Here's the audio I pulled out 🎧\n\nWant the text too? Tap the button below 👇"
+GET_TEXT_EXPIRED = "⏳ That audio isn't saved anymore (I only keep it for an hour). Please send the link again."
