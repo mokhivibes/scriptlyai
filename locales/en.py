@@ -308,7 +308,7 @@ LYRICS_BUTTON = "🎤 Find lyrics"
 
 # Bot profile texts (shown on the bot's page / before /start) and /feedback.
 BOT_DESCRIPTION = "Send a link or a file, get clean text. 🎬 Paste a YouTube, Instagram, TikTok, Facebook or X link — or send a voice message, audio or video file (up to 20 MB). ✍️ I transcribe it, tidy it up, and give you a short summary, one-tap copy, or a PDF/text file. 🌍 I speak English, Русский, العربية and Oʻzbekcha. Tap Start to begin."
-BOT_SHORT_DESCRIPTION = "Turn videos, voice notes & audio into clean text in seconds. Summaries, PDF export, 4 languages."
+BOT_SHORT_DESCRIPTION = "Turn any video link or voice note into clean text in seconds. Great with Uzbek 🇺🇿. PDF, summary & copy. Free."
 FEEDBACK_USAGE = "💬 Got feedback or found a bug? Send it along with the command, like:\n/feedback the PDF cut off my last line"
 FEEDBACK_THANKS = "🙏 Thanks — your feedback reached me."
 FEEDBACK_TOO_SOON = "⏳ Please wait a minute before sending more feedback."
