@@ -1,0 +1,8 @@
+[Unit]
+Description=ScriptlyAI database backup
+
+[Service]
+Type=oneshot
+User=scriptlyai
+WorkingDirectory=/home/scriptlyai/telegram-media-bot
+ExecStart=/home/scriptlyai/telegram-media-bot/venv/bin/python deploy/backup_db.py bot.db /home/scriptlyai/backups
