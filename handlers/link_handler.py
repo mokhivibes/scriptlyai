@@ -112,8 +112,9 @@ def _alphabet_for(user_id) -> str:
 
 def _alphabet_button_state(lang, media_language, user_id):
     """The user's current alphabet if the toggle button belongs on this
-    result - only an Uzbek-interface user looking at Uzbek text - else None."""
-    if lang == "uz" and media_language == "uz":
+    result - any user (whatever their interface language) looking at Uzbek
+    text - else None. `lang` is unused but kept so call sites read the same."""
+    if media_language == "uz":
         return _alphabet_for(user_id)
     return None
 
