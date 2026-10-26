@@ -321,9 +321,12 @@ def _try_kazakh_fallback(audio_path: str):
 # Free-tier limits, measured the same day (per project, per model):
 #   gemini-3.5-transcribe   25 requests/DAY, 3/min   - most accurate
 #   gemini-3.5-flash-lite   15 requests/min, ~500/day (reported) - good, a bit less accurate
-#   gemini-3.5-flash        only 20 requests/DAY      - not used
-# So the dedicated transcribe model is used while its 25/day last, flash-lite
-# (language identification + overflow transcription) after that.
+#   gemini-3.5-flash        only 20 requests/DAY      - better Uzbek than flash-lite
+# So transcription tries the dedicated model (25/day), then flash (20/day),
+# then flash-lite (language identification + the final overflow). A
+# text-only "proofreader" pass was tested and does NOT help: it can't hear
+# the audio, so misheard words stay wrong or get invented (21-22% word
+# error either way on a flash-lite transcript of a real reel).
 #
 # Language handling (probed on real Kazakh TV, Kyrgyz radio and Uzbek news
 # clips): the transcribe model's auto-detect returns an EMPTY transcript, and
@@ -334,6 +337,7 @@ def _try_kazakh_fallback(audio_path: str):
 GEMINI_BASE_URL = "https://generativelanguage.googleapis.com"
 GEMINI_MODEL = "gemini-3.5-transcribe"
 GEMINI_LITE_MODEL = "gemini-3.5-flash-lite"
+GEMINI_FLASH_MODEL = "gemini-3.5-flash"
 GEMINI_ID_PROMPT = (
     "Which language is spoken in this audio? It is one of: Uzbek, Kazakh, Kyrgyz, Russian, "
     "Turkish, Azerbaijani, other. Answer with exactly one word from that list, nothing else."
@@ -363,7 +367,7 @@ _GEMINI_MIME_TYPES = {
 
 # Per model: calls are serialized and spaced to stay under its per-minute
 # limit; a daily-quota error pauses just that model for an hour.
-_GEMINI_MIN_SECONDS_BETWEEN_CALLS = {GEMINI_MODEL: 21, GEMINI_LITE_MODEL: 5}
+_GEMINI_MIN_SECONDS_BETWEEN_CALLS = {GEMINI_MODEL: 21, GEMINI_FLASH_MODEL: 8, GEMINI_LITE_MODEL: 5}
 _gemini_state = {
     model: {"lock": threading.Lock(), "last": 0.0, "paused_until": 0.0}
     for model in _GEMINI_MIN_SECONDS_BETWEEN_CALLS
@@ -508,9 +512,10 @@ def _gemini_transcribe_dedicated(file_info: dict, mime: str, headers: dict, hint
     return text.strip() or None
 
 
-def _gemini_transcribe_lite(file_info: dict, mime: str, headers: dict, hint_key):
-    """Flash-lite by prompt - the overflow path once the dedicated model's
-    daily quota is gone, or when its reply was empty. hint_key None = language unknown."""
+def _gemini_transcribe_prompted(model: str, file_info: dict, mime: str, headers: dict, hint_key):
+    """A general Gemini model (flash / flash-lite) by prompt - used once the
+    dedicated model's daily quota is gone, or when its reply was empty.
+    hint_key None = language unknown."""
     if hint_key:
         prompt = (
             f"Transcribe this {_GEMINI_LANGUAGE_NAMES[hint_key]} audio verbatim, word for word."
@@ -522,7 +527,7 @@ def _gemini_transcribe_lite(file_info: dict, mime: str, headers: dict, hint_key)
             "Output only the transcript, with no comments and no quotation marks."
         )
     response = _gemini_post(
-        GEMINI_LITE_MODEL, headers, timeout=GEMINI_REQUEST_TIMEOUT,
+        model, headers, timeout=GEMINI_REQUEST_TIMEOUT,
         body={"contents": [{"parts": [
             {"fileData": {"fileUri": file_info["uri"], "mimeType": mime}},
             {"text": prompt},
@@ -538,7 +543,7 @@ def _try_gemini_fallback(audio_path: str):
     """
     Identifies the language, then transcribes with the dedicated model (one
     correct hint) or - when its quota is gone or it returns nothing - with
-    flash-lite. Returns ((text, language_label) or None, identified), where
+    flash, then flash-lite. Returns ((text, language_label) or None, identified), where
     `identified` is 'uz'/'kk'/'ky'/'other'/None - the caller uses it when no
     transcript came out (see transcribe_audio).
 
@@ -576,9 +581,13 @@ def _try_gemini_fallback(audio_path: str):
         if hint_key:
             text = _gemini_transcribe_dedicated(file_info, mime, headers, hint_key)
             if not text:
-                logger.info("Dedicated Gemini transcribe gave nothing (quota or empty) - trying flash-lite")
-        if not text:
-            text = _gemini_transcribe_lite(file_info, mime, headers, hint_key)
+                logger.info("Dedicated Gemini transcribe gave nothing (quota or empty) - trying the general models")
+        for model in (GEMINI_FLASH_MODEL, GEMINI_LITE_MODEL):
+            if text:
+                break
+            text = _gemini_transcribe_prompted(model, file_info, mime, headers, hint_key)
+            if text:
+                logger.info(f"Transcribed with {model}")
 
         if not text:
             logger.warning("Gemini produced no transcript - falling back")
