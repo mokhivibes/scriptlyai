@@ -1,4 +1,5 @@
 import os
+import sys
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -45,3 +46,11 @@ BOT_USERNAME = "@ScriptlyAI_bot"
 # from a (throwaway) logged-in account get past that. Not in git - it's a
 # login credential. If the file doesn't exist, downloads run without it.
 YOUTUBE_COOKIES_PATH = "youtube_cookies.txt"
+
+# YouTube now hides its audio formats behind a JavaScript challenge that
+# yt-dlp solves with a JS engine (Deno). On the server Deno is installed into
+# the bot's own venv (`pip install deno`, see deploy/README.md) - a folder
+# the systemd service doesn't have on its PATH - so point yt-dlp at it
+# explicitly. None (yt-dlp's own lookup) when it isn't there, e.g. on the Mac.
+_VENV_DENO = os.path.join(os.path.dirname(sys.executable), "deno")
+YT_DLP_JS_RUNTIMES = {"deno": {"path": _VENV_DENO}} if os.path.exists(_VENV_DENO) else None

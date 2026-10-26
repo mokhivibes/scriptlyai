@@ -1,7 +1,7 @@
 import os
 import yt_dlp
 
-from config import YOUTUBE_COOKIES_PATH
+from config import YOUTUBE_COOKIES_PATH, YT_DLP_JS_RUNTIMES
 
 
 DOWNLOAD_DIR = "downloads"
@@ -45,6 +45,8 @@ def download_youtube_video(url: str):
 
     if os.path.exists(YOUTUBE_COOKIES_PATH):
         options["cookiefile"] = YOUTUBE_COOKIES_PATH
+    if YT_DLP_JS_RUNTIMES:
+        options["js_runtimes"] = YT_DLP_JS_RUNTIMES
 
     with yt_dlp.YoutubeDL(options) as ydl:
         info = ydl.extract_info(url, download=True)

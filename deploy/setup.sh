@@ -42,6 +42,8 @@ sudo -u scriptlyai bash -c '
     python3 -m venv venv
     ./venv/bin/pip install --upgrade pip
     ./venv/bin/pip install -r requirements.txt
+    # JS engine yt-dlp needs to unlock YouTube audio (kept in the venv, not system-wide)
+    ./venv/bin/pip install deno
 '
 
 echo "==> Creating downloads/ and logs/ directories..."
