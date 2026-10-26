@@ -43,7 +43,7 @@ from utils.network_retry import call_with_retry, call_sync_with_retry
 from utils.stickers import STICKER_PROCESSING, STICKER_DONE, STICKER_ERROR
 from handlers.command_handler import help_command, history_command, language_command
 from utils.uzbek_script import render_uzbek, pipeline_alphabet, user_alphabet
-from config import OWNER_USER_ID, BOT_USERNAME, YOUTUBE_COOKIES_PATH, YT_DLP_JS_RUNTIMES
+from config import OWNER_USER_ID, BOT_USERNAME, YOUTUBE_COOKIES_PATH, YT_DLP_JS_RUNTIMES, MAX_DOWNLOAD_BYTES
 
 logger = logging.getLogger(__name__)
 
@@ -64,13 +64,12 @@ BRAND_FOOTER_PARTS = [("\n\n", False), (BOT_USERNAME, QUOTE_BOLD)]
 # this; going higher needs a self-hosted local Bot API server.
 TELEGRAM_BOT_DOWNLOAD_LIMIT_BYTES = 20 * 1024 * 1024
 
-# Above this, show a confirm/cancel warning before committing to the full
-# pipeline instead of silently making someone wait - a full song can take
-# 5+ minutes to transcribe, and results are less reliable for music/singing
-# than speech (see README Known Limitations). Chosen to comfortably clear
-# typical short-form clips (YouTube Shorts, TikTok, Reels) while catching
-# most full songs and longer spoken content.
-LONG_CONTENT_THRESHOLD_SECONDS = 90
+# Links longer than this are refused up front. The audio is sent to the user
+# as an MP3 (128 kbps), and Telegram bots can upload at most 50 MB: 45
+# minutes is ~43 MB. (The old "this is long, continue?" prompt is gone -
+# transcription now only starts when the user taps "Get the text", and the
+# hosted models handle long audio in seconds.)
+MAX_LINK_DURATION_SECONDS = 45 * 60
 
 # Every full pipeline run costs at least 2 Groq calls (Whisper transcribe +
 # gpt-oss-120b cleanup, sometimes +1 more for a Summarize tap) against a
@@ -156,9 +155,9 @@ def _alphabet_button_state(lang, media_language, user_id):
     return None
 
 
-def _get_duration_seconds(url):
+def _probe_url(url):
     """
-    Best-effort, download-free duration lookup via yt-dlp metadata only
+    Best-effort, download-free lookup via yt-dlp metadata only
     (skip_download=True - no video/audio bytes fetched). Deliberately not
     wrapped in call_sync_with_retry: this is an optional nicety gating a
     UX warning, not a required step - if it fails or times out for any
@@ -177,10 +176,11 @@ def _get_duration_seconds(url):
     try:
         with yt_dlp.YoutubeDL(options) as ydl:
             info = ydl.extract_info(url, download=False)
-        return info.get("duration")
+        is_live = bool(info.get("is_live")) or info.get("live_status") in ("is_live", "is_upcoming")
+        return info.get("duration"), is_live
     except Exception as error:
-        logger.warning(f"Duration lookup failed (non-fatal, proceeding without warning): {error}")
-        return None
+        logger.warning(f"URL lookup failed (non-fatal, proceeding anyway): {error}")
+        return None, False
 
 
 def build_long_content_confirm_keyboard(lang):
@@ -590,29 +590,25 @@ async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         try:
             try:
-                duration = await asyncio.wait_for(asyncio.to_thread(_get_duration_seconds, url), timeout=30)
+                duration, is_live = await asyncio.wait_for(asyncio.to_thread(_probe_url, url), timeout=30)
             except asyncio.TimeoutError:
-                logger.warning("Duration lookup timed out (non-fatal, proceeding without warning)")
-                duration = None
+                logger.warning("URL lookup timed out (non-fatal, proceeding anyway)")
+                duration, is_live = None, False
 
             if ack_message:
                 await _delete_silently(ack_message)
 
-            if duration and duration > LONG_CONTENT_THRESHOLD_SECONDS:
-                context.user_data["pending_url"] = url
-                context.user_data["pending_platform"] = platform
-                context.user_data["pending_platform_name"] = platform_name
+            if is_live:
+                _mark_free(context)
+                await call_with_retry(update.message.reply_text, msg.t(lang, "ERROR_LIVE_STREAM"), parse_mode="Markdown")
+                return
 
-                # busy is deliberately left True here (not released in a
-                # finally below) - a pending confirm/cancel tap is still
-                # "something in flight" for this user, released either by
-                # _handle_confirm_long_content/_handle_cancel_long_content
-                # or by _process_link's own finally once that runs.
+            if duration and duration > MAX_LINK_DURATION_SECONDS:
+                _mark_free(context)
                 await call_with_retry(
                     update.message.reply_text,
-                    msg.long_content_warning(lang, duration / 60),
+                    msg.t(lang, "ERROR_TOO_LONG", max_minutes=MAX_LINK_DURATION_SECONDS // 60),
                     parse_mode="Markdown",
-                    reply_markup=build_long_content_confirm_keyboard(lang)
                 )
                 return
 
@@ -801,6 +797,8 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
                     # retries unless set explicitly.
                     "retries": 5,
                     "fragment_retries": 5,
+                    "max_filesize": MAX_DOWNLOAD_BYTES,
+                    "socket_timeout": 30,
                 }
 
                 with yt_dlp.YoutubeDL(options) as ydl:
@@ -810,6 +808,10 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
             video_path, video_title = await asyncio.to_thread(call_sync_with_retry, _download_instagram)
 
         if not resume:
+            if not video_path or not os.path.exists(video_path):
+                # yt-dlp skips (rather than fails) a download over max_filesize.
+                raise ValueError("The file is too large to download.")
+
             logger.info(f"Video downloaded: {video_path}")
 
             await call_with_retry(status_message.edit_text, msg.extracting_audio_message(lang), parse_mode="Markdown")
@@ -897,12 +899,12 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
             raise ValueError("No speech detected in this audio.")
 
         logger.info(f"Detected language: {detected_language}")
-        logger.info(f"Raw transcript: {transcript}")
+        logger.info(f"Raw transcript received ({len(transcript)} characters)")
 
         await call_with_retry(status_message.edit_text, msg.cleaning_message(lang), parse_mode="Markdown")
 
         cleaned_transcript = await asyncio.to_thread(clean_transcript, transcript)
-        logger.info(f"Cleaned transcript: {cleaned_transcript}")
+        logger.info(f"Cleaned transcript ready ({len(cleaned_transcript)} characters)")
 
         # Cleanup ran on the standard Uzbek Latin; what the user sees (and
         # what's stored for /history, Copy and exports) uses the revised

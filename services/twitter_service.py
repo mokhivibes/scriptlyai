@@ -1,6 +1,8 @@
 import os
 import yt_dlp
 
+from config import MAX_DOWNLOAD_BYTES
+
 
 DOWNLOAD_DIR = "downloads"
 
@@ -33,6 +35,8 @@ def download_twitter_video(url: str):
         # See youtube_service.py's identical option - yt-dlp's Python API
         # does not apply its CLI default of 10 retries unless set explicitly.
         "retries": 5,
+        "max_filesize": MAX_DOWNLOAD_BYTES,
+        "socket_timeout": 30,
         "fragment_retries": 5,
     }
 

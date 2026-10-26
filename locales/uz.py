@@ -324,3 +324,7 @@ GET_TEXT_EXPIRED = "⏳ Bu audio endi saqlanmagan (uni faqat bir soat saqlayman)
 
 # --- YouTube refusing the server (expired cookies) ---
 YOUTUBE_BLOCKED = "⚠️ YouTube hozir meni bloklayapti, shuning uchun bu havolani yuklab ola olmayapman. Egasiga xabar berdim. Keyinroq urinib koʻring yoki audio yoki videoni fayl sifatida yuboring."
+
+# --- Link limits (live streams, very long videos) ---
+ERROR_LIVE_STREAM = "📡 Bu *jonli efir* ekan, bunday havolalarni ishlay olmayman. Efir tugab, oddiy video sifatida saqlangandan keyin qayta yuboring."
+ERROR_TOO_LONG = "⏱ Bu video *{max_minutes} daqiqadan uzun* — buni ishlay olmayman. Qisqaroq video yuboring yoki faqat kerakli qismini yuboring."

@@ -6,6 +6,8 @@ import requests
 
 from config import GROQ_API_KEY
 from utils.network_retry import call_sync_with_retry
+from utils.text_chunker import split_into_chunks
+from services.groq_chat import chat as groq_chat
 
 logger = logging.getLogger(__name__)
 
@@ -163,28 +165,14 @@ def is_cleanup_trustworthy(raw_transcript: str, cleaned_transcript: str, min_ove
 
 
 def _call_groq_chat(prompt: str) -> str:
-    response = requests.post(
-        GROQ_CHAT_URL,
-        headers={"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"},
-        json={
-            "model": MODEL_NAME,
-            "messages": [{"role": "user", "content": prompt}],
-            # Low temperature, not the default (~0.8-1.0) stochastic
-            # decoding - found via real testing (on the previous local
-            # Ollama setup, same principle applies here) that default
-            # decoding lets a model hallucinate extra repetitions on
-            # chant-like/repetitive input. This is a correction task, not
-            # creative writing, so low temperature costs nothing here.
-            "temperature": 0.2,
-        },
-        timeout=60,
-    )
-
-    response.raise_for_status()
-    return response.json()["choices"][0]["message"]["content"]
+    # Low temperature, not the default (~0.8-1.0) stochastic decoding - found
+    # via real testing that default decoding lets a model hallucinate extra
+    # repetitions on chant-like/repetitive input. This is a correction task,
+    # not creative writing, so low temperature costs nothing here.
+    return groq_chat(prompt, temperature=0.2)
 
 
-def clean_transcript(transcript: str):
+def _clean_chunk(transcript: str):
     """
     Clean a Whisper transcript using a Groq-hosted AI model.
 
@@ -299,3 +287,30 @@ Return ONLY the cleaned and naturally formatted transcript.
     return cleaned
 
 
+# Each cleanup call must fit Groq's 8,000-tokens-per-minute budget (prompt
+# ~900 tokens + the text in + the text out), so long transcripts are cleaned
+# in pieces. ~4,000 characters is roughly 3-4 minutes of speech.
+CLEANUP_CHUNK_CHARS = 4000
+
+
+def clean_transcript(transcript: str):
+    """
+    Cleans a transcript of any length. The transcript itself is the product
+    and the cleanup is a nicety, so this NEVER fails the request: a piece
+    whose cleanup errors out (rate limit, outage, too large) is kept as the
+    raw text instead.
+    """
+
+    chunks, _ = split_into_chunks(transcript, max_chars=CLEANUP_CHUNK_CHARS)
+    if not chunks:
+        return transcript
+
+    cleaned_parts = []
+    for chunk in chunks:
+        try:
+            cleaned_parts.append(_clean_chunk(chunk))
+        except Exception as error:
+            logger.warning(f"Cleanup failed for a piece ({type(error).__name__}) - keeping it as transcribed")
+            cleaned_parts.append(chunk)
+
+    return "\n\n".join(cleaned_parts)

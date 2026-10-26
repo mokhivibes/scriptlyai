@@ -375,3 +375,7 @@ GET_TEXT_EXPIRED = "⏳ That audio isn't saved anymore (I only keep it for an ho
 
 # --- YouTube refusing the server (expired cookies) ---
 YOUTUBE_BLOCKED = "⚠️ YouTube is blocking me for the moment, so I can't fetch this link right now. I've let the owner know. Please try again later, or send the audio or video as a file instead."
+
+# --- Link limits (live streams, very long videos) ---
+ERROR_LIVE_STREAM = "📡 That looks like a *live stream*, and I can't process those. Try again once it has ended and is saved as a normal video."
+ERROR_TOO_LONG = "⏱ That video is *longer than {max_minutes} minutes*, which is more than I can handle. Try a shorter one, or send me just the part you need."

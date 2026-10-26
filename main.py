@@ -11,7 +11,7 @@ from telegram.ext import (
 )
 
 from logging_config import setup_logging
-from config import BOT_TOKEN
+from config import BOT_TOKEN, CLEAN_STALE_DOWNLOADS
 from database import init_database, add_user, get_interface_language
 from handlers.link_handler import handle_link, handle_callback_query, handle_unsupported_message, handle_media_file
 from handlers.command_handler import (
@@ -32,6 +32,7 @@ from handlers.command_handler import (
 from utils import messages as msg
 from utils.network_retry import call_with_retry
 from utils.logo import send_logo
+from utils.housekeeping import cleanup_stale_files
 
 logger = logging.getLogger(__name__)
 
@@ -150,6 +151,9 @@ def main():
 
     # Initialize the database
     init_database()
+
+    if CLEAN_STALE_DOWNLOADS:
+        cleanup_stale_files()
 
     # Create the Telegram application.
     # By default python-telegram-bot processes updates one at a time,

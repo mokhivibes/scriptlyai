@@ -1,7 +1,7 @@
 import os
 import yt_dlp
 
-from config import YOUTUBE_COOKIES_PATH, YT_DLP_JS_RUNTIMES
+from config import YOUTUBE_COOKIES_PATH, YT_DLP_JS_RUNTIMES, MAX_DOWNLOAD_BYTES
 
 
 DOWNLOAD_DIR = "downloads"
@@ -40,6 +40,8 @@ def download_youtube_video(url: str):
         # retries at all). Set explicitly so transient network hiccups
         # during download get retried instead of failing on the first blip.
         "retries": 5,
+        "max_filesize": MAX_DOWNLOAD_BYTES,
+        "socket_timeout": 30,
         "fragment_retries": 5,
     }
 

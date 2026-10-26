@@ -2,6 +2,8 @@ import requests
 
 from config import GROQ_API_KEY
 from utils.network_retry import call_sync_with_retry
+from utils.text_chunker import split_into_chunks
+from services.groq_chat import chat as groq_chat
 
 # Same Groq chat model/endpoint as ai_cleanup_service.py - kept as its own
 # small call here (not shared) to match this project's existing pattern
@@ -11,22 +13,10 @@ MODEL_NAME = "openai/gpt-oss-120b"
 
 
 def _call_groq_chat(prompt: str) -> str:
-    response = requests.post(
-        GROQ_CHAT_URL,
-        headers={"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"},
-        json={
-            "model": MODEL_NAME,
-            "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.3,
-        },
-        timeout=60,
-    )
-
-    response.raise_for_status()
-    return response.json()["choices"][0]["message"]["content"]
+    return groq_chat(prompt, temperature=0.3)
 
 
-def summarize_transcript(transcript: str) -> str:
+def _summarize_piece(transcript: str) -> str:
     """
     Produce a short bullet-point summary of an already-cleaned transcript,
     in the SAME language as the transcript itself (not the bot's interface
@@ -67,3 +57,32 @@ Return ONLY the bullet-point summary.
             break
 
     return summary
+
+
+# Same per-minute token budget as the cleanup (see ai_cleanup_service.py).
+SUMMARY_CHUNK_CHARS = 5000
+
+
+def summarize_transcript(transcript: str) -> str:
+    """
+    Summarizes a transcript of any length. Long ones are summarized piece by
+    piece, then the piece summaries are summarized together - so the result
+    always covers the whole recording, not just its start.
+    """
+
+    chunks, _ = split_into_chunks(transcript, max_chars=SUMMARY_CHUNK_CHARS)
+    if len(chunks) <= 1:
+        return _summarize_piece(transcript)
+
+    piece_summaries = [_summarize_piece(chunk) for chunk in chunks]
+    combined = "\n".join(piece_summaries)
+
+    # A very long recording's piece summaries can themselves be long - keep
+    # condensing until they fit one call.
+    for _ in range(3):
+        if len(combined) <= SUMMARY_CHUNK_CHARS:
+            break
+        pieces, _unused = split_into_chunks(combined, max_chars=SUMMARY_CHUNK_CHARS)
+        combined = "\n".join(_summarize_piece(piece) for piece in pieces)
+
+    return _summarize_piece(combined)

@@ -59,3 +59,13 @@ YT_DLP_JS_RUNTIMES = {"deno": {"path": _VENV_DENO}} if os.path.exists(_VENV_DENO
 # sh->ş, ch->ç; law signed 2026-10-21). False keeps the 1995 orthography.
 # See utils/uzbek_script.py.
 UZBEK_NEW_ALPHABET = True
+
+# Hard ceiling for any single download (video or audio). Without it a huge
+# video - or a live stream, which never ends - would fill the server's disk.
+MAX_DOWNLOAD_BYTES = 250 * 1024 * 1024
+
+# Delete leftover files in downloads/ older than a few hours when the bot
+# starts (crashes and restarts can orphan them). Off by default so a
+# development copy of the bot never touches its own downloads/ folder; the
+# server turns it on with CLEAN_STALE_DOWNLOADS=1 in .env.
+CLEAN_STALE_DOWNLOADS = os.getenv("CLEAN_STALE_DOWNLOADS") == "1"
