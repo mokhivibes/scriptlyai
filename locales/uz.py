@@ -261,7 +261,7 @@ LYRICS_HINT = "\n\n🎤 Agar bu qoʻshiq nomi boʻlsa, matnini topish uchun past
 LYRICS_BUTTON = "🎤 Qoʻshiq matnini topish"
 
 # Bot profile texts (shown on the bot's page / before /start) and /feedback.
-BOT_DESCRIPTION = "Havola yoki fayl yuboring — toza matn oling. 🎬 YouTube, Instagram, TikTok, Facebook yoki X havolasini joylang — yoki ovozli xabar, audio yoki video fayl (20 MB gacha) yuboring. ✍️ Men uni matnga aylantiraman, tartibga solaman va qisqa xulosa, bir bosishda nusxalash yoki PDF/matn fayli beraman. 🌍 English, Русский, العربية va Oʻzbekcha tillarida ishlayman. Boshlash uchun Start tugmasini bosing."
+BOT_DESCRIPTION = "Video havola yoki ovozli xabar yuboring — soniyalarda toza matn oling. 🎬 YouTube, Instagram, TikTok, Facebook yoki X havolasini joylang: men audioni (MP3) yuboraman, tugmani bossangiz — matnni ham. 🎙 Yoki ovozli xabar, audio yoki video fayl (20 MB gacha) yuboring. ✍️ Matnni tartibga solaman va qisqa xulosa, bir bosishda nusxalash yoki PDF/matn fayli beraman. 🇺🇿 Oʻzbekchada a'lo. 🌍 English, Русский, العربية va Oʻzbekcha tillarida ishlayman. Bepul, kuniga 15 ta matn. Boshlash uchun Start tugmasini bosing."
 BOT_SHORT_DESCRIPTION = "Video havola → MP3 audio va toza matn soniyalarda. Ovozli xabar ham. Oʻzbekchada a'lo 🇺🇿. PDF, xulosa. Bepul."
 FEEDBACK_USAGE = "💬 Fikringiz bormi yoki xato topdingizmi? Buyruq bilan birga yuboring, masalan:\n/feedback PDF oxirgi qatorni kesib tashladi"
 FEEDBACK_THANKS = "🙏 Rahmat — fikringiz menga yetib keldi."
