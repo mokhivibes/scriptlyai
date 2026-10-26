@@ -311,22 +311,43 @@ def _try_kazakh_fallback(audio_path: str):
         logger.exception("Kazakh fallback transcription failed - keeping Groq's result")
         return None
 
-# --- Gemini 3.5 Transcribe (first choice for the Uzbek cluster) ---
+# --- Gemini (first choice for the Uzbek cluster) ---
 #
 # Measured 2026-10-26 on a real 2.5-minute Uzbek reel: Gemini returned a
 # clean, correct transcript in ~3s, versus ~18 minutes for the three local
 # models run one after another on the production VPS (a shared 4-vCPU CPU
-# decodes Whisper-medium at ~4.5x slower than real time). Its free tier
-# allows only 3 generate requests per minute per project, so calls are
-# serialized and spaced below. Auto-detection returns an empty transcript
-# (a known Google-side bug), so the three candidate languages are passed
-# as hints instead - given all three it picked Uzbek on the Uzbek clip.
+# decodes Whisper-medium at ~4.5x slower than real time).
+#
+# Free-tier limits, measured the same day (per project, per model):
+#   gemini-3.5-transcribe   25 requests/DAY, 3/min   - most accurate
+#   gemini-3.5-flash-lite   15 requests/min, ~500/day (reported) - good, a bit less accurate
+#   gemini-3.5-flash        only 20 requests/DAY      - not used
+# So the dedicated transcribe model is used while its 25/day last, flash-lite
+# (language identification + overflow transcription) after that.
+#
+# Language handling (probed on real Kazakh TV, Kyrgyz radio and Uzbek news
+# clips): the transcribe model's auto-detect returns an EMPTY transcript, and
+# so does a WRONG language hint; passing all three languages at once also made
+# it spell Uzbek audio in Kazakh Cyrillic. A single CORRECT hint always worked.
+# So the language is identified first (flash-lite: right on 4/4 clips, 3/3
+# times each) and the transcription then gets that one hint.
 GEMINI_BASE_URL = "https://generativelanguage.googleapis.com"
 GEMINI_MODEL = "gemini-3.5-transcribe"
-GEMINI_LANGUAGE_HINTS = ["uz-UZ", "kk-KZ", "ky-KG"]
-GEMINI_MIN_SECONDS_BETWEEN_CALLS = 21  # 3 requests/minute on the free tier
+GEMINI_LITE_MODEL = "gemini-3.5-flash-lite"
+GEMINI_ID_PROMPT = (
+    "Which language is spoken in this audio? It is one of: Uzbek, Kazakh, Kyrgyz, Russian, "
+    "Turkish, Azerbaijani, other. Answer with exactly one word from that list, nothing else."
+)
+_GEMINI_HINTS = {"uz": "uz-UZ", "kk": "kk-KZ", "ky": "ky-KG"}
+_GEMINI_ID_WORDS = {"uzbek": "uz", "kazakh": "kk", "kyrgyz": "ky"}
+_GEMINI_LANGUAGE_NAMES = {"uz": "Uzbek", "kk": "Kazakh", "ky": "Kyrgyz"}
+_GEMINI_SCRIPT_RULES = {
+    "uz": " Write it in Latin script, using the apostrophe letters oʻ and gʻ.",
+    "kk": " Write it in Cyrillic script.",
+    "ky": " Write it in Cyrillic script.",
+}
 GEMINI_MAX_RATE_LIMIT_RETRIES = 2
-GEMINI_MAX_AUDIO_SECONDS = 55 * 60  # the model accepts up to 1 hour per request
+GEMINI_MAX_AUDIO_SECONDS = 55 * 60  # the transcribe model accepts up to 1 hour per request
 GEMINI_REQUEST_TIMEOUT = 180
 GEMINI_DAILY_QUOTA_PAUSE_SECONDS = 3600
 
@@ -340,9 +361,13 @@ _GEMINI_MIME_TYPES = {
     ".aac": "audio/aac",
 }
 
-_gemini_lock = threading.Lock()
-_gemini_last_call_at = 0.0
-_gemini_paused_until = 0.0
+# Per model: calls are serialized and spaced to stay under its per-minute
+# limit; a daily-quota error pauses just that model for an hour.
+_GEMINI_MIN_SECONDS_BETWEEN_CALLS = {GEMINI_MODEL: 21, GEMINI_LITE_MODEL: 5}
+_gemini_state = {
+    model: {"lock": threading.Lock(), "last": 0.0, "paused_until": 0.0}
+    for model in _GEMINI_MIN_SECONDS_BETWEEN_CALLS
+}
 
 # Letters that exist in Kazakh but not Kyrgyz; Kyrgyz shares only ү/ө/ң.
 _KAZAKH_ONLY_LETTERS = set("әғқһіӘҒҚҺІ")
@@ -408,78 +433,164 @@ def _gemini_upload(audio_path: str, headers: dict):
     return file_info, mime
 
 
+def _gemini_post(model: str, headers: dict, body: dict, timeout: int):
+    """POST generateContent to one model under its own spacing/quota rules.
+    Returns the response, or None when that model is paused, out of daily
+    quota (which pauses it for an hour) or still rate limited after retries.
+    Other HTTP errors raise."""
+
+    state = _gemini_state[model]
+    if time.time() < state["paused_until"]:
+        return None
+
+    for attempt in range(GEMINI_MAX_RATE_LIMIT_RETRIES + 1):
+        with state["lock"]:
+            wait = _GEMINI_MIN_SECONDS_BETWEEN_CALLS[model] - (time.time() - state["last"])
+            if wait > 0:
+                time.sleep(wait)
+            state["last"] = time.time()
+            response = requests.post(
+                f"{GEMINI_BASE_URL}/v1beta/models/{model}:generateContent",
+                headers=headers, json=body, timeout=timeout,
+            )
+
+        if response.status_code == 429:
+            if "PerDay" in response.text:
+                state["paused_until"] = time.time() + GEMINI_DAILY_QUOTA_PAUSE_SECONDS
+                logger.warning(f"Gemini daily free quota exhausted for {model} - pausing it for an hour")
+                return None
+            logger.info(f"Gemini {model} rate limited (attempt {attempt + 1}) - retrying")
+            continue
+
+        response.raise_for_status()
+        return response
+
+    logger.warning(f"Gemini {model} still rate limited after retries")
+    return None
+
+
+def _gemini_parts(response) -> list:
+    return (response.json().get("candidates") or [{}])[0].get("content", {}).get("parts", [])
+
+
+def _gemini_identify_language(file_info: dict, mime: str, headers: dict):
+    """'uz' / 'kk' / 'ky', 'other' (none of those), or None if the lookup failed."""
+    try:
+        response = _gemini_post(
+            GEMINI_LITE_MODEL, headers, timeout=60,
+            body={"contents": [{"parts": [
+                {"fileData": {"fileUri": file_info["uri"], "mimeType": mime}},
+                {"text": GEMINI_ID_PROMPT},
+            ]}]},
+        )
+        if response is None:
+            return None
+        word = " ".join(part.get("text", "") for part in _gemini_parts(response))
+        word = word.strip().lower().strip(".!\"' ")
+        return _GEMINI_ID_WORDS.get(word, "other") if word else None
+    except Exception:
+        logger.exception("Gemini language lookup failed")
+        return None
+
+
+def _gemini_transcribe_dedicated(file_info: dict, mime: str, headers: dict, hint_key: str):
+    """The accurate transcribe model with ONE correct language hint (25/day free)."""
+    response = _gemini_post(
+        GEMINI_MODEL, headers, timeout=GEMINI_REQUEST_TIMEOUT,
+        body={
+            "contents": [{"parts": [{"fileData": {"fileUri": file_info["uri"], "mimeType": mime}}]}],
+            "generationConfig": {"audioTranscriptionConfig": {"languageCodes": [_GEMINI_HINTS[hint_key]]}},
+        },
+    )
+    if response is None:
+        return None
+    text = " ".join(part.get("audioTranscription", {}).get("text", "") for part in _gemini_parts(response))
+    return text.strip() or None
+
+
+def _gemini_transcribe_lite(file_info: dict, mime: str, headers: dict, hint_key):
+    """Flash-lite by prompt - the overflow path once the dedicated model's
+    daily quota is gone, or when its reply was empty. hint_key None = language unknown."""
+    if hint_key:
+        prompt = (
+            f"Transcribe this {_GEMINI_LANGUAGE_NAMES[hint_key]} audio verbatim, word for word."
+            f"{_GEMINI_SCRIPT_RULES[hint_key]} Output only the transcript, with no comments and no quotation marks."
+        )
+    else:
+        prompt = (
+            "Transcribe this audio verbatim, word for word, in the language that is spoken. "
+            "Output only the transcript, with no comments and no quotation marks."
+        )
+    response = _gemini_post(
+        GEMINI_LITE_MODEL, headers, timeout=GEMINI_REQUEST_TIMEOUT,
+        body={"contents": [{"parts": [
+            {"fileData": {"fileUri": file_info["uri"], "mimeType": mime}},
+            {"text": prompt},
+        ]}]},
+    )
+    if response is None:
+        return None
+    text = " ".join(part.get("text", "") for part in _gemini_parts(response))
+    return text.strip().strip('"\u201c\u201d`').strip() or None
+
+
 def _try_gemini_fallback(audio_path: str):
     """
-    Transcribes with Gemini 3.5 Transcribe, hinting Uzbek/Kazakh/Kyrgyz.
-    Returns (text, language_label), or None on ANY failure (no key, quota,
-    rate limit exhausted, empty result, network) so the caller carries on to
-    the local models / Groq's own result - this must never make things worse.
+    Identifies the language, then transcribes with the dedicated model (one
+    correct hint) or - when its quota is gone or it returns nothing - with
+    flash-lite. Returns ((text, language_label) or None, identified), where
+    `identified` is 'uz'/'kk'/'ky'/'other'/None - the caller uses it when no
+    transcript came out (see transcribe_audio).
 
-    The uploaded copy is deleted from Google's side right after use.
-    Calls are serialized and spaced to stay under the free tier's
-    3 requests/minute; a daily-quota error pauses Gemini for an hour so
-    users aren't made to wait on a call that can't succeed.
+    Returns no result on ANY failure (no key, quotas, empty reply, network) so
+    the caller carries on - this must never make things worse. The uploaded
+    copy is deleted from Google's side right after use.
     """
 
-    global _gemini_last_call_at, _gemini_paused_until
-
-    if not GEMINI_API_KEY or time.time() < _gemini_paused_until:
-        return None
+    if not GEMINI_API_KEY:
+        return None, None
 
     duration = _get_audio_duration_seconds(audio_path)
     if duration is not None and duration > GEMINI_MAX_AUDIO_SECONDS:
         logger.info(f"Audio too long for Gemini ({duration:.0f}s) - skipping")
-        return None
+        return None, None
 
     headers = {"x-goog-api-key": GEMINI_API_KEY}
     file_name = None
+    identified = None
 
     try:
         file_info, mime = _gemini_upload(audio_path, headers)
         file_name = file_info.get("name")
-        body = {
-            "contents": [{"parts": [{"fileData": {"fileUri": file_info["uri"], "mimeType": mime}}]}],
-            "generationConfig": {"audioTranscriptionConfig": {"languageCodes": GEMINI_LANGUAGE_HINTS}},
-        }
 
-        for attempt in range(GEMINI_MAX_RATE_LIMIT_RETRIES + 1):
-            with _gemini_lock:
-                wait = GEMINI_MIN_SECONDS_BETWEEN_CALLS - (time.time() - _gemini_last_call_at)
-                if wait > 0:
-                    time.sleep(wait)
-                _gemini_last_call_at = time.time()
-                response = requests.post(
-                    f"{GEMINI_BASE_URL}/v1beta/models/{GEMINI_MODEL}:generateContent",
-                    headers=headers, json=body, timeout=GEMINI_REQUEST_TIMEOUT,
-                )
+        identified = _gemini_identify_language(file_info, mime, headers)
+        logger.info(f"Gemini identified the language as: {identified}")
 
-            if response.status_code == 429:
-                if "PerDay" in response.text:
-                    _gemini_paused_until = time.time() + GEMINI_DAILY_QUOTA_PAUSE_SECONDS
-                    logger.warning("Gemini daily free quota exhausted - pausing Gemini for an hour")
-                    return None
-                logger.info(f"Gemini rate limited (attempt {attempt + 1}) - retrying")
-                continue
+        if identified == "other":
+            # Russian/Turkish/Azerbaijani/...: not ours to fix - Groq's own result stands.
+            return None, identified
 
-            response.raise_for_status()
-            parts = (response.json().get("candidates") or [{}])[0].get("content", {}).get("parts", [])
-            text = " ".join(
-                part.get("audioTranscription", {}).get("text", "") for part in parts
-            ).strip()
+        hint_key = identified if identified in _GEMINI_HINTS else None
 
+        text = None
+        if hint_key:
+            text = _gemini_transcribe_dedicated(file_info, mime, headers, hint_key)
             if not text:
-                logger.info("Gemini returned an empty transcript - falling back")
-                return None
-            language = _language_from_script(text)
-            if language == "uz":
-                text = cyrillic_to_latin(text)
-            return text, language
+                logger.info("Dedicated Gemini transcribe gave nothing (quota or empty) - trying flash-lite")
+        if not text:
+            text = _gemini_transcribe_lite(file_info, mime, headers, hint_key)
 
-        logger.warning("Gemini still rate limited after retries - falling back")
-        return None
+        if not text:
+            logger.warning("Gemini produced no transcript - falling back")
+            return None, identified
+
+        language = hint_key or _language_from_script(text)
+        if language == "uz":
+            text = cyrillic_to_latin(text)
+        return (text, language), identified
     except Exception:
         logger.exception("Gemini transcription failed - falling back")
-        return None
+        return None, identified
     finally:
         if file_name:
             try:
@@ -617,9 +728,24 @@ def transcribe_audio(audio_path: str, language: str = None, on_uzbek_fallback_st
             except Exception:
                 logger.exception("on_uzbek_fallback_start callback failed - continuing with transcription")
 
-        gemini_result = _try_gemini_fallback(audio_path)
+        gemini_result, gemini_language = _try_gemini_fallback(audio_path)
         if gemini_result:
             return gemini_result
+
+        if gemini_language == "other":
+            return text, detected_language
+
+        # Gemini recognised Uzbek but couldn't produce the transcript: Groq
+        # forced to Uzbek beats its own cluster guess (which wrote this same
+        # audio as Kazakh Cyrillic in a real case).
+        if gemini_language == "uz":
+            try:
+                forced_text, _ = call_sync_with_retry(_transcribe, audio_path, language="uz")
+                if forced_text:
+                    logger.info("Using Groq forced to Uzbek after Gemini returned nothing")
+                    return forced_text, "uz"
+            except Exception:
+                logger.exception("Groq forced-Uzbek fallback failed")
 
         duration = _get_audio_duration_seconds(audio_path)
         if duration is not None and duration > LOCAL_FALLBACK_MAX_SECONDS:
