@@ -28,6 +28,11 @@ def init_database():
     if "interface_language" not in user_columns:
         cursor.execute("ALTER TABLE users ADD COLUMN interface_language TEXT")
 
+    # 'new' / 'old' - which Uzbek Latin alphabet this user wants results in
+    # (see utils/uzbek_script.py). NULL = never chosen, callers use the default.
+    if "uzbek_alphabet" not in user_columns:
+        cursor.execute("ALTER TABLE users ADD COLUMN uzbek_alphabet TEXT")
+
     # Stores the cleaned transcript only - not the raw ASR output (only
     # useful for live debugging, not history) and not translations (cheap
     # to regenerate on demand via the re-translate flow, would otherwise
@@ -155,6 +160,36 @@ def get_interface_language(user_id):
     connection.close()
 
     return row[0] if row else None
+
+
+def set_uzbek_alphabet(user_id, alphabet):
+    """alphabet: 'new' or 'old'. Upsert for the same reason as set_interface_language."""
+
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    cursor.execute("""
+        INSERT INTO users (user_id, uzbek_alphabet)
+        VALUES (?, ?)
+        ON CONFLICT(user_id) DO UPDATE SET uzbek_alphabet = excluded.uzbek_alphabet
+    """, (user_id, alphabet))
+
+    connection.commit()
+    connection.close()
+
+
+def get_uzbek_alphabet(user_id):
+    """Returns 'new' or 'old', or None if this user never chose (caller applies the default)."""
+
+    connection = get_connection()
+    cursor = connection.cursor()
+
+    cursor.execute("SELECT uzbek_alphabet FROM users WHERE user_id = ?", (user_id,))
+
+    row = cursor.fetchone()
+    connection.close()
+
+    return row[0] if row and row[0] in ("new", "old") else None
 
 
 def add_transcript(user_id, platform, detected_language, title, transcript):

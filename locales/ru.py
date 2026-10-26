@@ -314,3 +314,9 @@ COMMAND_DESCRIPTIONS = {
     "privacy": "Что я храню и как удалить это",
     "feedback": "Отправить отзыв или сообщить о проблеме",
 }
+
+# --- Uzbek alphabet toggle (shown only to Uzbek-interface users on Uzbek results) ---
+ALPHABET_TO_NEW_BUTTON = "🔤 Новый алфавит: ö ğ ş ç"
+ALPHABET_TO_OLD_BUTTON = "🔤 Старый алфавит: oʻ gʻ sh ch"
+ALPHABET_CHANGED_NEW = "🔤 Переключено на новый алфавит (ö ğ ş ç)"
+ALPHABET_CHANGED_OLD = "🔤 Переключено на старый алфавит (oʻ gʻ sh ch)"

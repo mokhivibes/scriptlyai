@@ -310,3 +310,9 @@ COMMAND_DESCRIPTIONS = {
     "privacy": "Nimalarni saqlayman va qanday oʻchirish",
     "feedback": "Fikr yuborish yoki muammo haqida xabar berish",
 }
+
+# --- Uzbek alphabet toggle (shown only to Uzbek-interface users on Uzbek results) ---
+ALPHABET_TO_NEW_BUTTON = "🔤 Yangi alifbo: ö ğ ş ç"
+ALPHABET_TO_OLD_BUTTON = "🔤 Eski alifbo: oʻ gʻ sh ch"
+ALPHABET_CHANGED_NEW = "🔤 Yangi alifboga oʻtildi (ö ğ ş ç)"
+ALPHABET_CHANGED_OLD = "🔤 Eski alifboga oʻtildi (oʻ gʻ sh ch)"

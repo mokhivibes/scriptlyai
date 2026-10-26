@@ -24,6 +24,8 @@ from database import (
     add_transcript,
     get_transcript_by_id,
     get_interface_language,
+    get_uzbek_alphabet,
+    set_uzbek_alphabet,
     get_daily_usage_count,
     increment_daily_usage,
     decrement_daily_usage,
@@ -34,7 +36,7 @@ from database import (
 from utils.network_retry import call_with_retry, call_sync_with_retry
 from utils.stickers import STICKER_PROCESSING, STICKER_DONE, STICKER_ERROR
 from handlers.command_handler import help_command, history_command, language_command
-from utils.uzbek_script import display_alphabet, pipeline_alphabet
+from utils.uzbek_script import render_uzbek, pipeline_alphabet, user_alphabet
 from config import OWNER_USER_ID, BOT_USERNAME, YOUTUBE_COOKIES_PATH, YT_DLP_JS_RUNTIMES
 
 logger = logging.getLogger(__name__)
@@ -101,6 +103,19 @@ TRANSLATION_ENABLED = False
 
 def _lang(user_id) -> str:
     return get_interface_language(user_id) or msg.DEFAULT_LANGUAGE
+
+
+def _alphabet_for(user_id) -> str:
+    """This user's chosen Uzbek alphabet ('new'/'old'), default if never chosen."""
+    return user_alphabet(get_uzbek_alphabet(user_id))
+
+
+def _alphabet_button_state(lang, media_language, user_id):
+    """The user's current alphabet if the toggle button belongs on this
+    result - only an Uzbek-interface user looking at Uzbek text - else None."""
+    if lang == "uz" and media_language == "uz":
+        return _alphabet_for(user_id)
+    return None
 
 
 def _get_duration_seconds(url):
@@ -202,7 +217,13 @@ def _copy_button(lang, copy_text):
     return InlineKeyboardButton(label, callback_data="copy_text")
 
 
-def build_export_keyboard(lang, copy_text=None):
+def _alphabet_row(lang, alphabet):
+    """One button naming the alphabet a tap switches TO."""
+    key = "ALPHABET_TO_OLD_BUTTON" if alphabet == "new" else "ALPHABET_TO_NEW_BUTTON"
+    return [InlineKeyboardButton(msg.t(lang, key), callback_data="toggle_alphabet")]
+
+
+def build_export_keyboard(lang, copy_text=None, alphabet=None):
     keyboard = [[
         InlineKeyboardButton(msg.t(lang, "EXPORT_PDF_BUTTON"), callback_data="export_pdf"),
         InlineKeyboardButton(msg.t(lang, "EXPORT_TXT_BUTTON"), callback_data="export_txt"),
@@ -220,10 +241,13 @@ def build_export_keyboard(lang, copy_text=None):
     else:
         keyboard.append([InlineKeyboardButton(msg.t(lang, "SUMMARIZE_BUTTON"), callback_data="summarize")])
 
+    if alphabet:
+        keyboard.append(_alphabet_row(lang, alphabet))
+
     return InlineKeyboardMarkup(keyboard)
 
 
-def build_save_keyboard(lang, copy_text=None):
+def build_save_keyboard(lang, copy_text=None, alphabet=None):
     """
     A smaller export-only keyboard (no Translate/Summary) shown after a
     translation or summary - Translate/Summary always operate on the
@@ -242,6 +266,8 @@ def build_save_keyboard(lang, copy_text=None):
             _copy_button(lang, copy_text),
         ],
     ]
+    if alphabet:
+        keyboard.append(_alphabet_row(lang, alphabet))
     return InlineKeyboardMarkup(keyboard)
 
 
@@ -718,7 +744,7 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
         # what's stored for /history, Copy and exports) uses the revised
         # alphabet - see utils/uzbek_script.py.
         if detected_language == "uz":
-            cleaned_transcript = display_alphabet(cleaned_transcript)
+            cleaned_transcript = render_uzbek(cleaned_transcript, _alphabet_for(user_id))
 
         context.user_data["last_transcript"] = cleaned_transcript
         context.user_data["detected_language"] = detected_language
@@ -745,7 +771,9 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
         await call_with_retry(
             message.reply_text,
             msg.t(lang, "NEXT_ACTIONS_PROMPT"),
-            reply_markup=build_export_keyboard(lang, cleaned_transcript)
+            reply_markup=build_export_keyboard(
+                lang, cleaned_transcript, alphabet=_alphabet_button_state(lang, detected_language, user_id)
+            )
         )
 
         # The processing sticker and the "cleaning up..." status line have
@@ -833,6 +861,11 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
         await _handle_copy(query, context, lang)
         return
 
+    # Same for the Uzbek alphabet toggle - a re-render of text in memory.
+    if data == "toggle_alphabet":
+        await _handle_toggle_alphabet(query, context, lang)
+        return
+
     if _is_busy(context):
         await call_with_retry(query.message.reply_text, msg.t(lang, "STILL_WORKING"), parse_mode="Markdown")
         return
@@ -861,6 +894,47 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             await _handle_history_select(query, context, lang, data.replace("history_", ""))
     finally:
         _mark_free(context)
+
+
+async def _handle_toggle_alphabet(query, context, lang):
+    """Flips this user's Uzbek alphabet (saved for next time) and re-sends
+    what's on screen in the other one. Cheap - no pipeline work."""
+
+    user_id = query.from_user.id
+    on_screen = context.user_data.get("export_text") or context.user_data.get("last_transcript")
+
+    if not on_screen or context.user_data.get("export_language") != "uz":
+        await call_with_retry(query.message.reply_text, msg.t(lang, "NO_TRANSCRIPT_SAVED"), parse_mode="Markdown")
+        return
+
+    choice = "old" if _alphabet_for(user_id) == "new" else "new"
+    set_uzbek_alphabet(user_id, choice)
+
+    original_on_screen = on_screen == context.user_data.get("last_transcript")
+
+    # Translate/Summarize always start from last_transcript, so keep it in
+    # the chosen alphabet too (it's Uzbek whenever detected_language is).
+    if context.user_data.get("detected_language") == "uz" and context.user_data.get("last_transcript"):
+        context.user_data["last_transcript"] = render_uzbek(context.user_data["last_transcript"], choice)
+
+    rendered = render_uzbek(on_screen, choice)
+    context.user_data["export_text"] = rendered
+
+    changed = msg.t(lang, "ALPHABET_CHANGED_NEW" if choice == "new" else "ALPHABET_CHANGED_OLD")
+    await send_result_text(query.message, [(changed, False)], rendered)
+
+    if original_on_screen:
+        await call_with_retry(
+            query.message.reply_text,
+            msg.t(lang, "NEXT_ACTIONS_PROMPT"),
+            reply_markup=build_export_keyboard(lang, rendered, alphabet=choice),
+        )
+    else:
+        await call_with_retry(
+            query.message.reply_text,
+            msg.t(lang, "EXPORT_PROMPT"),
+            reply_markup=build_save_keyboard(lang, rendered, alphabet=choice),
+        )
 
 
 async def _handle_copy(query, context, lang):
@@ -1014,7 +1088,7 @@ async def _handle_translate_to(query, context, lang, target_code):
         source_text = pipeline_alphabet(transcript) if detected_language == "uz" else transcript
         translated = await asyncio.to_thread(translate_text, source_text, target_code, detected_language)
         if target_code == "uz":
-            translated = display_alphabet(translated)
+            translated = render_uzbek(translated, _alphabet_for(query.from_user.id))
         await send_result_text(query.message, msg.translation_header_parts(lang), translated)
         # "Translating..." has been superseded by the result just sent -
         # delete it now that it's actually landed, rather than leaving it
@@ -1034,7 +1108,9 @@ async def _handle_translate_to(query, context, lang, target_code):
         await call_with_retry(
             query.message.reply_text,
             msg.t(lang, "EXPORT_PROMPT"),
-            reply_markup=build_save_keyboard(lang, translated)
+            reply_markup=build_save_keyboard(
+                lang, translated, alphabet=_alphabet_button_state(lang, target_code, query.from_user.id)
+            )
         )
     except Exception as error:
         logger.exception(f"Translation failed: {type(error).__name__}: {error}")
@@ -1062,7 +1138,7 @@ async def _handle_summarize(query, context, lang):
         summary_source = pipeline_alphabet(transcript) if summary_is_uzbek else transcript
         summary = await asyncio.to_thread(summarize_transcript, summary_source)
         if summary_is_uzbek:
-            summary = display_alphabet(summary)
+            summary = render_uzbek(summary, _alphabet_for(query.from_user.id))
         await send_result_text(query.message, msg.summary_header_parts(lang), summary)
         # "Summarizing..." has been superseded by the result just sent -
         # delete it now that it's actually landed (only after a successful
@@ -1081,7 +1157,10 @@ async def _handle_summarize(query, context, lang):
         await call_with_retry(
             query.message.reply_text,
             msg.t(lang, "EXPORT_PROMPT"),
-            reply_markup=build_save_keyboard(lang, summary)
+            reply_markup=build_save_keyboard(
+                lang, summary,
+                alphabet=_alphabet_button_state(lang, context.user_data.get("detected_language"), query.from_user.id),
+            )
         )
     except Exception as error:
         logger.exception(f"Summarization failed: {type(error).__name__}: {error}")
@@ -1108,6 +1187,10 @@ async def _handle_history_select(query, context, lang, transcript_id_raw):
 
     _id, platform, detected_language, title, transcript_text, created_at = row
 
+    # Stored Uzbek may be in either alphabet - show it in this user's choice.
+    if detected_language == "uz":
+        transcript_text = render_uzbek(transcript_text, _alphabet_for(query.from_user.id))
+
     # Selecting a history entry makes it the active transcript, so any
     # export/translate/summarize tap afterward applies to this one, not
     # whatever was active before.
@@ -1126,5 +1209,7 @@ async def _handle_history_select(query, context, lang, transcript_id_raw):
     await call_with_retry(
         query.message.reply_text,
         msg.t(lang, "NEXT_ACTIONS_PROMPT"),
-        reply_markup=build_export_keyboard(lang, transcript_text)
+        reply_markup=build_export_keyboard(
+            lang, transcript_text, alphabet=_alphabet_button_state(lang, detected_language, query.from_user.id)
+        )
     )

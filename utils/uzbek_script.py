@@ -94,9 +94,23 @@ def new_alphabet_to_latin(text: str) -> str:
     return _NEW_LETTERS.sub(convert, text)
 
 
-def display_alphabet(text: str) -> str:
-    """Pipeline Latin -> what the user sees."""
-    return latin_to_new_alphabet(text) if UZBEK_NEW_ALPHABET else text
+def default_alphabet() -> str:
+    return "new" if UZBEK_NEW_ALPHABET else "old"
+
+
+def user_alphabet(saved) -> str:
+    """The user's saved choice ('new'/'old'), or the default if they never chose."""
+    return saved if saved in ("new", "old") else default_alphabet()
+
+
+def render_uzbek(text: str, alphabet: str) -> str:
+    """
+    Text in EITHER form (stored history may be the old spelling or the new
+    one) -> the chosen alphabet. Going through the old Latin first makes this
+    safe to apply repeatedly and to text of unknown form.
+    """
+    latin = new_alphabet_to_latin(text)
+    return latin_to_new_alphabet(latin) if alphabet == "new" else latin
 
 
 def pipeline_alphabet(text: str) -> str:
