@@ -408,6 +408,13 @@ def _caption_kwargs(caption_markdown: str):
     return {"caption": text, "caption_entities": entities}
 
 
+def _signature_kwargs():
+    """Just the bot signature as the caption - for media that has no caption
+    of its own (videos), so it still carries the handle when forwarded."""
+    text, entities = build_bold_message(list(BRAND_FOOTER_PARTS[1:]))
+    return {"caption": text, "caption_entities": entities}
+
+
 # Telegram's native copy-to-clipboard button only accepts 1-256 characters.
 COPY_BUTTON_MAX_CHARS = 256
 
@@ -1363,21 +1370,17 @@ async def _serve_photos(message, context, lang, user_id, photos):
         if not photo_paths:
             raise ValueError("No picture could be downloaded")
 
-        caption = msg.t(lang, "PHOTOS_CAPTION", count=len(photo_paths))
+        # Every album/photo carries the bot signature (the first also says
+        # how many pictures the post has).
+        count_caption = msg.t(lang, "PHOTOS_CAPTION", count=len(photo_paths))
         for start in range(0, len(photo_paths), 10):
             group = photo_paths[start:start + 10]
-            first_caption = caption if start == 0 else None
+            caption_kwargs = _caption_kwargs(count_caption) if start == 0 else _signature_kwargs()
             if len(group) == 1:
-                await call_with_retry(
-                    message.reply_photo, photo=Path(group[0]),
-                    **({"caption": first_caption, "parse_mode": "Markdown"} if first_caption else {}),
-                )
+                await call_with_retry(message.reply_photo, photo=Path(group[0]), **caption_kwargs)
             else:
                 media = [
-                    InputMediaPhoto(
-                        Path(path),
-                        **({"caption": first_caption, "parse_mode": "Markdown"} if i == 0 and first_caption else {}),
-                    )
+                    InputMediaPhoto(Path(path), **(caption_kwargs if i == 0 else {}))
                     for i, path in enumerate(group)
                 ]
                 await call_with_retry(message.reply_media_group, media=media)
@@ -1424,7 +1427,9 @@ async def _handle_video(query, context, lang, data):
     saved_id = get_link_video(cache_key, quality) if cache_key else None
     if saved_id:
         try:
-            await call_with_retry(message.reply_video, video=saved_id, supports_streaming=True)
+            await call_with_retry(
+                message.reply_video, video=saved_id, supports_streaming=True, **_signature_kwargs()
+            )
             bump_counter("cache_hit_video")
             logger.info(f"Video served from memory: {cache_key} {quality}p user={user_id}")
             return
@@ -1451,7 +1456,7 @@ async def _handle_video(query, context, lang, data):
             message.reply_video,
             video=Path(path),
             width=width, height=height, duration=int(duration) if duration else None,
-            supports_streaming=True,
+            supports_streaming=True, **_signature_kwargs(),
         )
         counts[count_key] = counts.get(count_key, 0) + 1
         bump_counter("video_sent")
