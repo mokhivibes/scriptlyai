@@ -62,6 +62,11 @@ def extract_audio(video_path: str):
 
     audio_path = os.path.splitext(video_path)[0] + ".mp3"
 
+    # The download can already be an .mp3 (TikTok serves audio-only files):
+    # ffmpeg can't read and overwrite the same file, so convert to a sibling.
+    if os.path.abspath(audio_path) == os.path.abspath(video_path):
+        audio_path = os.path.splitext(video_path)[0] + "_audio.mp3"
+
     command = [
         FFMPEG_PATH,
         "-i",
