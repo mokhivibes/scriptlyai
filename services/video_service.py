@@ -39,8 +39,16 @@ def _is_h264(fmt):
     return codec.startswith("avc1") or codec.startswith("h264")
 
 
-def _size(fmt):
-    return fmt.get("filesize") or fmt.get("filesize_approx")
+def _size(fmt, duration=None):
+    """Bytes, from the reported size or - when the platform doesn't say (HLS
+    streams) - estimated from the bitrate (kbit/s) and the duration."""
+    size = fmt.get("filesize") or fmt.get("filesize_approx")
+    if size:
+        return size
+    bitrate = fmt.get("tbr") or fmt.get("abr")
+    if bitrate and duration:
+        return int(bitrate * 1000 / 8 * duration)
+    return None
 
 
 def _best_audio(formats):
@@ -62,6 +70,7 @@ def build_options(info):
     {"quality": 360, "selector": "<yt-dlp format string>", "bytes": estimate or None}.
     """
 
+    duration = info.get("duration")
     formats = [f for f in (info.get("formats") or []) if f.get("format_id")]
     videos = [f for f in formats if _has_video(f)]
     if not videos:
@@ -93,10 +102,10 @@ def build_options(info):
 
         if _has_audio(pick) or audio is None:
             selector = pick["format_id"]
-            size = _size(pick)
+            size = _size(pick, duration)
         else:
             selector = f"{pick['format_id']}+{audio['format_id']}"
-            video_size, audio_size = _size(pick), _size(audio)
+            video_size, audio_size = _size(pick, duration), _size(audio, duration)
             size = video_size + (audio_size or 0) if video_size else None
 
         if size and size > MAX_VIDEO_BYTES:
