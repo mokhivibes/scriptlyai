@@ -761,7 +761,19 @@ async def handle_media_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     _mark_busy(context)
 
-    upload = {"file_id": attachment.file_id, "title": getattr(attachment, "file_name", None)}
+    # A video (or round video note) has an audio track the user can't use
+    # as-is, so it gets the same treatment as a link: MP3 first, text on tap.
+    # Voice notes and audio files already ARE audio - those go straight to text.
+    is_video = bool(
+        message.video
+        or message.video_note
+        or (message.document and (message.document.mime_type or "").startswith("video/"))
+    )
+    upload = {
+        "file_id": attachment.file_id,
+        "title": getattr(attachment, "file_name", None),
+        "send_audio": is_video,
+    }
     await _process_link(message, context, None, "upload", "File", lang, update.effective_user.id, upload=upload)
 
 
@@ -790,7 +802,7 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
     # the daily limit.
     # audio_already_sent: the audio came from memory (see _serve_cached_audio) and
     # the user has now tapped "Get text" for a video whose text isn't saved yet.
-    ask_first = upload is None and resume is None and not audio_already_sent
+    ask_first = (upload is None or bool(upload.get("send_audio"))) and resume is None and not audio_already_sent
     cache_key = canonical_link_key(url, platform) if url else None
 
     if not ask_first:
@@ -928,7 +940,7 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
 
             logger.info(f"Audio extracted: {audio_path}")
 
-        if not upload and not resume and not audio_already_sent:
+        if (not upload or upload.get("send_audio")) and not resume and not audio_already_sent:
             token = uuid.uuid4().hex[:12]
             ask_markup = None
             if ask_first:
@@ -936,11 +948,16 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
                     InlineKeyboardButton(msg.t(lang, "GET_TEXT_BUTTON"), callback_data=f"get_text_{token}")
                 ]])
 
+            send_name = os.path.basename(audio_path)
+            if upload:
+                # The working file is upload_<random>.mp3; show something readable.
+                send_name = (os.path.splitext(video_title)[0] if video_title else "ScriptlyAI_audio") + ".mp3"
+
             with open(audio_path, "rb") as audio_file:
                 sent_audio = await call_with_retry(
                     message.reply_audio,
                     audio=audio_file,
-                    filename=os.path.basename(audio_path),
+                    filename=send_name,
                     reply_markup=ask_markup,
                     **_caption_kwargs(msg.t(lang, "AUDIO_CAPTION_ASK" if ask_first else "AUDIO_CAPTION"))
                 )

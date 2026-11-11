@@ -1,5 +1,5 @@
 python-telegram-bot==22.8
-yt-dlp[default]
+yt-dlp[default,curl-cffi]
 requests
 deep-translator
 fpdf2
