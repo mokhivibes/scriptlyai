@@ -373,7 +373,27 @@ async def _delete_silently(message):
         logger.warning(f"Failed to delete message {getattr(message, 'message_id', '?')} - leaving it in place")
 
 
-async def send_result_text(message, header_parts, content: str):
+def _chunk_keeping_lines(content: str, max_chars: int):
+    """Splits at line breaks (never inside a bullet) so a list keeps one
+    bullet per line - split_into_chunks() joins lines of a paragraph with
+    spaces, which is right for prose but turns a summary into a run-on line."""
+
+    chunks, current = [], ""
+    for line in content.split("\n"):
+        pieces = [line] if len(line) <= max_chars else split_into_chunks(line, max_chars=max_chars)[0]
+        for piece in pieces:
+            candidate = piece if not current else current + "\n" + piece
+            if len(candidate) > max_chars and current:
+                chunks.append(current)
+                current = piece
+            else:
+                current = candidate
+    if current:
+        chunks.append(current)
+    return chunks
+
+
+async def send_result_text(message, header_parts, content: str, keep_lines: bool = False):
     """
     Sends a transcript/translation/summary as plain text (selectable, not
     monospaced), in one or more messages split at paragraph/sentence
@@ -385,7 +405,10 @@ async def send_result_text(message, header_parts, content: str):
     The copy button (see build_export_keyboard) handles one-tap copying.
     """
 
-    chunks, _ = split_into_chunks(content, max_chars=TELEGRAM_MESSAGE_MAX_CHARS)
+    if keep_lines:
+        chunks = _chunk_keeping_lines(content, TELEGRAM_MESSAGE_MAX_CHARS)
+    else:
+        chunks, _ = split_into_chunks(content, max_chars=TELEGRAM_MESSAGE_MAX_CHARS)
     if not chunks:
         chunks = [""]
 
@@ -1750,7 +1773,7 @@ async def _handle_summarize(query, context, lang):
         )
         if summary_is_uzbek:
             summary = render_uzbek(summary, _alphabet_for(query.from_user.id))
-        await send_result_text(query.message, msg.summary_header_parts(lang), summary)
+        await send_result_text(query.message, msg.summary_header_parts(lang), summary, keep_lines=True)
         # "Summarizing..." has been superseded by the result just sent -
         # delete it now that it's actually landed (only after a successful
         # send, not before - see _handle_translate_to's identical comment
