@@ -169,6 +169,7 @@ TRANSLATION_UNAVAILABLE = "🌐 Translation isn't available yet — it's coming 
 SUMMARIZING = "🔍 Summarizing..."
 SUMMARY_HEADER_PARTS = [("Here's a quick summary:", False)]
 SUMMARY_FAILED = "🔍 Hmm, I couldn't put a summary together. _Tap the button below to try again._"
+SUMMARY_TOO_SHORT = "📝 This one is *too short to summarize* — the text above already says it all."
 
 # Shown with the full 4-button menu (export/translate/summarize) right
 # after a transcript - deliberately more general than EXPORT_PROMPT

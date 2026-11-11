@@ -40,7 +40,7 @@ def _retry_wait(response) -> float:
     return 5.0
 
 
-def chat(prompt: str, temperature: float) -> str:
+def chat(prompt: str, temperature: float, max_tokens: int = None) -> str:
     """One chat completion, waiting out short rate limits. Raises (so the
     caller can fall back) when the wait would be long - e.g. the daily
     quota - or after MAX_ATTEMPTS."""
@@ -54,6 +54,9 @@ def chat(prompt: str, temperature: float) -> str:
                 "messages": [{"role": "user", "content": prompt}],
                 "temperature": temperature,
                 "reasoning_effort": REASONING_EFFORT,
+                # Hard ceiling so a model stuck in a repetition loop cannot
+                # write forever (it happened with Uzbek summaries).
+                **({"max_tokens": max_tokens} if max_tokens else {}),
             },
             timeout=90,
         )

@@ -141,6 +141,7 @@ TRANSLATION_UNAVAILABLE = "🌐 الترجمة غير متاحة بعد — ست
 SUMMARIZING = "🔍 ألخّص الآن..."
 SUMMARY_HEADER_PARTS = [("إليك ملخصاً سريعاً:", False)]
 SUMMARY_FAILED = "🔍 للأسف لم أتمكن من تجهيز الملخص. _اضغط الزر أدناه لتجربة ذلك مرة أخرى._"
+SUMMARY_TOO_SHORT = "📝 هذا النص *قصير جداً للتلخيص* — فالنص أعلاه يقول كل شيء."
 
 # See en.py's NEXT_ACTIONS_PROMPT comment for why this is separate from
 # EXPORT_PROMPT below.

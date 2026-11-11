@@ -140,6 +140,7 @@ TRANSLATION_UNAVAILABLE = "🌐 Перевод пока недоступен —
 SUMMARIZING = "🔍 Делаю краткое содержание..."
 SUMMARY_HEADER_PARTS = [("Вот краткое содержание:", False)]
 SUMMARY_FAILED = "🔍 Хм, не получилось собрать краткое содержание. _Нажми на кнопку ниже, чтобы попробовать снова._"
+SUMMARY_TOO_SHORT = "📝 Этот текст *слишком короткий для краткого содержания* — всё уже сказано выше."
 
 # See en.py's NEXT_ACTIONS_PROMPT comment for why this is separate from
 # EXPORT_PROMPT below.

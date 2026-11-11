@@ -494,6 +494,53 @@ def _gemini_parts(response) -> list:
     return (response.json().get("candidates") or [{}])[0].get("content", {}).get("parts", [])
 
 
+def gemini_generate_text(prompt: str, temperature: float = 0.3, max_tokens: int = 2000):
+    """
+    Plain text generation on Gemini's free tier (flash, then flash-lite), for
+    work Groq does badly - Uzbek summaries - or cannot do right now. Shares
+    the per-model spacing and daily-quota pausing of the transcription tiers.
+    Returns the text, or None when neither model could answer in full.
+
+    Thinking is switched off: these models otherwise spend most of the output
+    budget "thinking" (measured 1,666 of 1,973 tokens on a short summary) and
+    the answer comes back cut off mid-sentence.
+    """
+
+    if not GEMINI_API_KEY:
+        return None
+
+    headers = {"x-goog-api-key": GEMINI_API_KEY}
+    config = {"temperature": temperature, "maxOutputTokens": max_tokens}
+    for model in (GEMINI_FLASH_MODEL, GEMINI_LITE_MODEL):
+        for generation_config in ({**config, "thinkingConfig": {"thinkingBudget": 0}}, config):
+            try:
+                response = _gemini_post(
+                    model, headers, timeout=90,
+                    body={"contents": [{"parts": [{"text": prompt}]}], "generationConfig": generation_config},
+                )
+            except requests.HTTPError as error:
+                if error.response is not None and error.response.status_code == 400 and "thinkingConfig" in generation_config:
+                    continue  # this model does not accept the thinking switch - retry without it
+                logger.exception(f"Gemini {model} text generation failed")
+                break
+            except Exception:
+                logger.exception(f"Gemini {model} text generation failed")
+                break
+
+            if response is None:
+                break
+            candidate = (response.json().get("candidates") or [{}])[0]
+            if candidate.get("finishReason") not in (None, "STOP"):
+                logger.warning(f"Gemini {model} answer incomplete ({candidate.get('finishReason')}) - discarding it")
+                break
+            text = "".join(p.get("text", "") for p in candidate.get("content", {}).get("parts", []) if not p.get("thought")).strip()
+            if text:
+                _count(f"text:{'flash' if model == GEMINI_FLASH_MODEL else 'lite'}")
+                return text
+            break
+    return None
+
+
 def _gemini_identify_language(file_info: dict, mime: str, headers: dict):
     """'uz' / 'kk' / 'ky', 'other' (none of those), or None if the lookup failed."""
     try:

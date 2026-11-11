@@ -140,6 +140,7 @@ TRANSLATION_UNAVAILABLE = "🌐 Tarjima hozircha mavjud emas — tez orada qoʻs
 SUMMARIZING = "🔍 Qisqacha mazmunini tayyorlayapman..."
 SUMMARY_HEADER_PARTS = [("Mana qisqacha mazmuni:", False)]
 SUMMARY_FAILED = "🔍 Voy, qisqacha mazmunini tayyorlay olmadim. _Qayta urinish uchun quyidagi tugmani bosing._"
+SUMMARY_TOO_SHORT = "📝 Bu matn *qisqartirish uchun juda qisqa* — yuqoridagi matn hammasini aytib turibdi."
 
 # See en.py's NEXT_ACTIONS_PROMPT comment for why this is separate from
 # EXPORT_PROMPT below.

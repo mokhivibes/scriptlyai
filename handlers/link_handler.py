@@ -24,7 +24,7 @@ from services.photo_service import find_photos, download_photos, download_audio
 from services.ai_cleanup_service import clean_transcript
 from services.export_service import export_to_pdf, export_to_text
 from services.translation_service import translate_text
-from services.summary_service import summarize_transcript
+from services.summary_service import summarize_transcript, SummaryTooShort
 from database import (
     add_transcript,
     get_transcript_by_id,
@@ -1745,7 +1745,9 @@ async def _handle_summarize(query, context, lang):
     try:
         summary_is_uzbek = context.user_data.get("detected_language") == "uz"
         summary_source = pipeline_alphabet(transcript) if summary_is_uzbek else transcript
-        summary = await asyncio.to_thread(summarize_transcript, summary_source)
+        summary = await asyncio.to_thread(
+            summarize_transcript, summary_source, context.user_data.get("detected_language")
+        )
         if summary_is_uzbek:
             summary = render_uzbek(summary, _alphabet_for(query.from_user.id))
         await send_result_text(query.message, msg.summary_header_parts(lang), summary)
@@ -1771,6 +1773,8 @@ async def _handle_summarize(query, context, lang):
                 alphabet=_alphabet_button_state(lang, context.user_data.get("detected_language"), query.from_user.id),
             )
         )
+    except SummaryTooShort:
+        await call_with_retry(status_message.edit_text, msg.t(lang, "SUMMARY_TOO_SHORT"), parse_mode="Markdown")
     except Exception as error:
         logger.exception(f"Summarization failed: {type(error).__name__}: {error}")
         await call_with_retry(
