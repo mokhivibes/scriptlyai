@@ -787,12 +787,10 @@ async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 logger.warning("URL lookup timed out (non-fatal, proceeding anyway)")
                 duration, is_live, video_options = None, False, []
 
-            if ack_message:
-                await _delete_silently(ack_message)
-
             # Nothing playable found at all: on Instagram and TikTok that is
             # what a photo post looks like. Those get their pictures (and
-            # music) instead of the audio + Get-the-text flow.
+            # music) instead of the audio + Get-the-text flow. (The "got your
+            # link" message stays up while this looks, so there is no silent gap.)
             if platform in ("instagram", "tiktok") and not video_options and not duration:
                 try:
                     photos = await asyncio.wait_for(asyncio.to_thread(find_photos, url, platform), timeout=45)
@@ -800,9 +798,14 @@ async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     photos = None
                 if photos:
                     logger.info(f"Photo post: platform={platform} pictures={len(photos['images'])} music={bool(photos['audio_url'])}")
+                    if ack_message:
+                        await _delete_silently(ack_message)
                     await _serve_photos(update.message, context, lang, update.effective_user.id, photos)
                     _mark_free(context)
                     return
+
+            if ack_message:
+                await _delete_silently(ack_message)
 
             if is_live:
                 _mark_free(context)
@@ -1365,6 +1368,17 @@ async def _serve_photos(message, context, lang, user_id, photos):
         return
 
     photo_paths, audio_path = [], None
+    # Same "working on it" look as every other request: the processing sticker
+    # and a status line, both removed once the pictures have been sent.
+    sticker_message = status_message = None
+    try:
+        sticker_message = await call_with_retry(message.reply_sticker, STICKER_PROCESSING)
+        status_message = await call_with_retry(
+            message.reply_text, msg.t(lang, "PHOTOS_DOWNLOADING"), parse_mode="Markdown"
+        )
+    except Exception:
+        logger.warning("Could not show the photo-post progress messages (continuing)")
+
     try:
         photo_paths = await asyncio.to_thread(download_photos, photos["images"])
         if not photo_paths:
@@ -1402,6 +1416,9 @@ async def _serve_photos(message, context, lang, user_id, photos):
         logger.exception("Sending the photo post failed")
         await call_with_retry(message.reply_text, msg.t(lang, "ERROR_GENERIC"), parse_mode="Markdown")
     finally:
+        for progress_message in (sticker_message, status_message):
+            if progress_message:
+                await _delete_silently(progress_message)
         for path in photo_paths + [audio_path]:
             _remove_file(path)
 
