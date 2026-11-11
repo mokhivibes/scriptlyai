@@ -1379,8 +1379,10 @@ async def _serve_photos(message, context, lang, user_id, photos):
             if len(group) == 1:
                 await call_with_retry(message.reply_photo, photo=Path(group[0]), **caption_kwargs)
             else:
+                # Bytes, not a Path: InputMedia turns a Path into a file:// link
+                # that Telegram rejects (single photos handle Path fine).
                 media = [
-                    InputMediaPhoto(Path(path), **(caption_kwargs if i == 0 else {}))
+                    InputMediaPhoto(Path(path).read_bytes(), **(caption_kwargs if i == 0 else {}))
                     for i, path in enumerate(group)
                 ]
                 await call_with_retry(message.reply_media_group, media=media)
