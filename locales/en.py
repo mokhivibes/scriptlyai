@@ -374,6 +374,11 @@ ALPHABET_CHANGED_OLD = "🔤 Switched to the old alphabet (oʻ gʻ sh ch)"
 GET_TEXT_BUTTON = "📝 Get the text"
 AUDIO_CAPTION_ASK = "Here's the audio I pulled out 🎧\n\nWant the text too? Tap the button below 👇"
 GET_TEXT_EXPIRED = "⏳ That audio isn't saved anymore (I only keep it for an hour). Please send the link again."
+AUDIO_CAPTION_ASK_VIDEO = "Here's the audio I pulled out 🎧\n\nWant the text or the video too? Tap a button below 👇"
+VIDEO_DOWNLOADING = "🎬 Getting your *{quality}p* video — this can take a minute…"
+VIDEO_TOO_BIG = "😕 That quality is over Telegram's *50 MB* limit for bots. Try a lower quality."
+VIDEO_EXPIRED = "⏳ Those video options aren't saved anymore (I only keep them for an hour). Please send the link again."
+VIDEO_LIMIT_REACHED = "🎬 You've reached today's limit of *{limit} videos*. Audio and text still work — and videos reset tomorrow."
 
 # --- YouTube refusing the server (expired cookies) ---
 YOUTUBE_BLOCKED = "⚠️ YouTube is blocking me for the moment, so I can't fetch this link right now. I've let the owner know. Please try again later, or send the audio or video as a file instead."

@@ -132,6 +132,19 @@ def init_database():
         )
     """)
 
+    # Telegram file_id of an already-sent video, per video and quality (the
+    # shorter side in pixels) - same idea as link_cache: no user id, a repeat
+    # request re-sends it instantly with nothing downloaded or uploaded.
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS link_video_cache (
+            key TEXT NOT NULL,
+            quality INTEGER NOT NULL,
+            file_id TEXT NOT NULL,
+            cached_at TEXT NOT NULL,
+            PRIMARY KEY (key, quality)
+        )
+    """)
+
     # Keyed by a hash of the source text (not the text itself - transcripts
     # can be long) plus the language pair, so an identical translation
     # request - a double-tap, a retry after a transient failure, or
@@ -470,6 +483,34 @@ def forget_link_audio(key):
     """Telegram no longer accepts the saved file_id - stop offering it."""
     connection = get_connection()
     connection.execute("UPDATE link_cache SET audio_file_id = NULL WHERE key = ?", (key,))
+    connection.commit()
+    connection.close()
+
+
+def get_link_video(key, quality):
+    """Saved Telegram file_id for this video at this quality, or None."""
+    connection = get_connection()
+    row = connection.execute(
+        "SELECT file_id FROM link_video_cache WHERE key = ? AND quality = ? AND cached_at >= datetime('now', ?)",
+        (key, quality, f"-{LINK_AUDIO_TTL_DAYS} days"),
+    ).fetchone()
+    connection.close()
+    return row[0] if row else None
+
+
+def save_link_video(key, quality, file_id):
+    connection = get_connection()
+    connection.execute("""
+        INSERT INTO link_video_cache (key, quality, file_id, cached_at) VALUES (?, ?, ?, datetime('now'))
+        ON CONFLICT(key, quality) DO UPDATE SET file_id = excluded.file_id, cached_at = excluded.cached_at
+    """, (key, quality, file_id))
+    connection.commit()
+    connection.close()
+
+
+def forget_link_video(key, quality):
+    connection = get_connection()
+    connection.execute("DELETE FROM link_video_cache WHERE key = ? AND quality = ?", (key, quality))
     connection.commit()
     connection.close()
 

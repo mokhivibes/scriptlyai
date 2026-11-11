@@ -323,6 +323,11 @@ ALPHABET_CHANGED_OLD = "🔤 Eski alifboga oʻtildi (oʻ gʻ sh ch)"
 GET_TEXT_BUTTON = "📝 Matnini olish"
 AUDIO_CAPTION_ASK = "Mana men ajratib olgan audio 🎧\n\nMatni ham kerakmi? Quyidagi tugmani bosing 👇"
 GET_TEXT_EXPIRED = "⏳ Bu audio endi saqlanmagan (uni faqat bir soat saqlayman). Havolani qayta yuboring."
+AUDIO_CAPTION_ASK_VIDEO = "Mana men ajratib olgan audio 🎧\n\nMatni yoki videosi ham kerakmi? Quyidagi tugmalardan birini bosing 👇"
+VIDEO_DOWNLOADING = "🎬 *{quality}p* videoni olyapman — bu bir daqiqa olishi mumkin…"
+VIDEO_TOO_BIG = "😕 Bu sifat Telegramning botlar uchun *50 MB* chegarasidan katta. Pastroq sifatni tanlang."
+VIDEO_EXPIRED = "⏳ Bu video variantlari endi saqlanmagan (ularni faqat bir soat saqlayman). Havolani qayta yuboring."
+VIDEO_LIMIT_REACHED = "🎬 Bugungi *{limit} ta video* chegarasiga yetdingiz. Audio va matn ishlayveradi, videolar esa ertaga yangilanadi."
 
 # --- YouTube refusing the server (expired cookies) ---
 YOUTUBE_BLOCKED = "⚠️ YouTube hozir meni bloklayapti, shuning uchun bu havolani yuklab ola olmayapman. Egasiga xabar berdim. Keyinroq urinib koʻring yoki audio yoki videoni fayl sifatida yuboring."

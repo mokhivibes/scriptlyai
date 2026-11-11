@@ -3,6 +3,7 @@ import logging
 import os
 import time
 import uuid
+from pathlib import Path
 from urllib.parse import quote_plus
 
 from telegram import CopyTextButton, Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -17,6 +18,7 @@ from services.twitter_service import download_twitter_video
 from services.tiktok_service import download_tiktok_video
 from services.facebook_service import download_facebook_video
 from services.audio_service import extract_audio
+from services.video_service import build_options, download_video
 from services.ai_cleanup_service import clean_transcript
 from services.export_service import export_to_pdf, export_to_text
 from services.translation_service import translate_text
@@ -38,6 +40,9 @@ from database import (
     save_link_audio,
     save_link_transcript,
     forget_link_audio,
+    get_link_video,
+    save_link_video,
+    forget_link_video,
     owner_alert_already_sent,
     mark_owner_alert_sent,
     next_quota_reset,
@@ -127,6 +132,11 @@ PENDING_TEXT_TTL_SECONDS = 3600
 # links discards the oldest waiting one (keeps disk use bounded).
 PENDING_PER_USER_MAX = 3
 
+# Video downloads cost server bandwidth and (for YouTube) risk the server's
+# standing with YouTube, but no AI quota - so they get their own, more
+# generous cap, kept in memory (a restart resets it, which is fine for a guard).
+VIDEO_DAILY_LIMIT = 20
+
 
 def _pending_registry(context) -> dict:
     return context.application.bot_data.setdefault("pending_text", {})
@@ -147,6 +157,53 @@ def _purge_expired_pending(context):
         if now - info["created"] > PENDING_TEXT_TTL_SECONDS:
             registry.pop(token, None)
             _remove_file(info.get("audio_path"))
+
+
+def _video_registry(context) -> dict:
+    return context.application.bot_data.setdefault("pending_video", {})
+
+
+def _register_video_options(context, token, user_id, url, platform, platform_name, cache_key, title, options):
+    """Remembers which video qualities the buttons under this audio stand for
+    (the buttons carry only an index, not the link)."""
+
+    now = time.time()
+    registry = _video_registry(context)
+    for old_token, info in list(registry.items()):
+        if now - info["created"] > PENDING_TEXT_TTL_SECONDS:
+            registry.pop(old_token, None)
+
+    mine = [t for t, info in registry.items() if info["user_id"] == user_id]
+    for old_token in mine[: max(0, len(mine) - PENDING_PER_USER_MAX + 1)]:
+        registry.pop(old_token, None)
+
+    registry[token] = {
+        "user_id": user_id, "url": url, "platform": platform, "platform_name": platform_name,
+        "cache_key": cache_key, "title": title, "options": options, "created": now,
+    }
+
+
+def _size_label(size_bytes):
+    if not size_bytes:
+        return ""
+    return f" · ~{max(1, round(size_bytes / (1024 * 1024)))} MB"
+
+
+def _video_row(token, options):
+    return [
+        InlineKeyboardButton(f"🎬 {o['quality']}p{_size_label(o['bytes'])}", callback_data=f"vid_{token}_{i}")
+        for i, o in enumerate(options)
+    ]
+
+
+def _audio_markup(lang, token, options=None, with_text=True):
+    """Buttons under the audio: Get the text, then (for links) the video qualities."""
+    rows = []
+    if with_text:
+        rows.append([InlineKeyboardButton(msg.t(lang, "GET_TEXT_BUTTON"), callback_data=f"get_text_{token}")])
+    if options:
+        rows.append(_video_row(token, options))
+    return InlineKeyboardMarkup(rows) if rows else None
 
 
 async def _deliver_transcript(message, context, lang, user_id, platform, title, text, detected_language):
@@ -202,16 +259,14 @@ async def _serve_cached_audio(message, context, lang, user_id, cache_key, cached
     """
 
     token = uuid.uuid4().hex[:12]
-    markup = InlineKeyboardMarkup([[
-        InlineKeyboardButton(msg.t(lang, "GET_TEXT_BUTTON"), callback_data=f"get_text_{token}")
-    ]])
+    markup = _audio_markup(lang, token)
 
     try:
-        await call_with_retry(
+        sent = await call_with_retry(
             message.reply_audio,
             audio=cached["audio_file_id"],
             reply_markup=markup,
-            **_caption_kwargs(msg.t(lang, "AUDIO_CAPTION_ASK")),
+            **_caption_kwargs(msg.t(lang, "AUDIO_CAPTION_ASK_VIDEO")),
         )
     except Exception:
         logger.warning(f"Telegram rejected the saved audio for {cache_key} - processing it again")
@@ -229,6 +284,19 @@ async def _serve_cached_audio(message, context, lang, user_id, cache_key, cached
     }
     bump_counter("cache_hit_audio")
     logger.info(f"Audio served from memory: {cache_key} user={user_id}")
+
+    # The audio came instantly; the video qualities need a quick look-up
+    # (a few seconds), so they are added to the buttons once known.
+    try:
+        _duration, _is_live, video_options = await asyncio.wait_for(asyncio.to_thread(_probe_url, url), timeout=30)
+        if video_options:
+            _register_video_options(
+                context, token, user_id, url, platform, platform_name, cache_key, cached["title"], video_options
+            )
+            await sent.edit_reply_markup(reply_markup=_audio_markup(lang, token, video_options))
+    except Exception:
+        logger.warning("Could not add the video buttons to the saved audio (non-fatal)")
+
     return True
 
 
@@ -268,10 +336,15 @@ def _probe_url(url):
         with yt_dlp.YoutubeDL(options) as ydl:
             info = ydl.extract_info(url, download=False)
         is_live = bool(info.get("is_live")) or info.get("live_status") in ("is_live", "is_upcoming")
-        return info.get("duration"), is_live
+        try:
+            video_options = build_options(info)
+        except Exception:
+            logger.warning("Could not work out the video qualities (non-fatal)")
+            video_options = []
+        return info.get("duration"), is_live, video_options
     except Exception as error:
         logger.warning(f"URL lookup failed (non-fatal, proceeding anyway): {error}")
-        return None, False
+        return None, False, []
 
 
 def build_long_content_confirm_keyboard(lang):
@@ -694,10 +767,10 @@ async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 ack_message = None
 
             try:
-                duration, is_live = await asyncio.wait_for(asyncio.to_thread(_probe_url, url), timeout=30)
+                duration, is_live, video_options = await asyncio.wait_for(asyncio.to_thread(_probe_url, url), timeout=30)
             except asyncio.TimeoutError:
                 logger.warning("URL lookup timed out (non-fatal, proceeding anyway)")
-                duration, is_live = None, False
+                duration, is_live, video_options = None, False, []
 
             if ack_message:
                 await _delete_silently(ack_message)
@@ -729,7 +802,10 @@ async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await call_with_retry(update.message.reply_text, msg.t(lang, "ERROR_GENERIC"), parse_mode="Markdown")
             return
 
-        await _process_link(update.message, context, url, platform, platform_name, lang, update.effective_user.id)
+        await _process_link(
+            update.message, context, url, platform, platform_name, lang, update.effective_user.id,
+            video_options=video_options,
+        )
 
     else:
         unrecognized_text, unrecognized_entities = msg.unrecognized_link_text(lang)
@@ -778,7 +854,7 @@ async def handle_media_file(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def _process_link(message, context, url, platform, platform_name, lang, user_id, upload=None, resume=None,
-                        audio_already_sent=False):
+                        audio_already_sent=False, video_options=None):
     """
     Runs the actual download -> extract -> transcribe -> clean -> export
     pipeline. Called either immediately (short content) or from the
@@ -944,9 +1020,9 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
             token = uuid.uuid4().hex[:12]
             ask_markup = None
             if ask_first:
-                ask_markup = InlineKeyboardMarkup([[
-                    InlineKeyboardButton(msg.t(lang, "GET_TEXT_BUTTON"), callback_data=f"get_text_{token}")
-                ]])
+                # Video qualities are offered for links only - a user who sent
+                # a video file already has the video.
+                ask_markup = _audio_markup(lang, token, None if upload else video_options)
 
             send_name = os.path.basename(audio_path)
             if upload:
@@ -959,7 +1035,7 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
                     audio=audio_file,
                     filename=send_name,
                     reply_markup=ask_markup,
-                    **_caption_kwargs(msg.t(lang, "AUDIO_CAPTION_ASK" if ask_first else "AUDIO_CAPTION"))
+                    **_caption_kwargs(msg.t(lang, "AUDIO_CAPTION_ASK_VIDEO" if (ask_first and not upload) else "AUDIO_CAPTION_ASK" if ask_first else "AUDIO_CAPTION"))
                 )
 
             # Telegram keeps the uploaded file; remember its id so the same
@@ -981,6 +1057,10 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
                     "platform_name": platform_name, "user_id": user_id, "created": time.time(),
                 }
                 keep_audio = True
+                if video_options and not upload:
+                    _register_video_options(
+                        context, token, user_id, url, platform, platform_name, cache_key, video_title, video_options
+                    )
                 logger.info(f"Audio sent, waiting for 'Get text' tap: token={token} user={user_id}")
 
                 await _delete_silently(processing_sticker_message)
@@ -1172,6 +1252,8 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
             await _handle_summarize(query, context, lang)
         elif data.startswith("get_text_"):
             await _handle_get_text(query, context, lang, data.replace("get_text_", ""))
+        elif data.startswith("vid_"):
+            await _handle_video(query, context, lang, data)
         elif data.startswith("history_"):
             await _handle_history_select(query, context, lang, data.replace("history_", ""))
     finally:
@@ -1197,9 +1279,13 @@ async def _handle_get_text(query, context, lang, token):
 
     registry.pop(token, None)
 
-    # Remove the button so a second tap can't start the same job twice.
+    # Remove the Get text button so a second tap can't start the same job
+    # twice - the video buttons stay, they're independent of it.
     try:
-        await query.edit_message_reply_markup(reply_markup=None)
+        video_info = _video_registry(context).get(token)
+        await query.edit_message_reply_markup(
+            reply_markup=_audio_markup(lang, token, video_info["options"], with_text=False) if video_info else None
+        )
     except Exception:
         logger.warning("Could not remove the Get text button")
 
@@ -1225,6 +1311,89 @@ async def _handle_get_text(query, context, lang, token):
         query.message, context, info["url"], info["platform"], info["platform_name"],
         lang, query.from_user.id, resume=info,
     )
+
+
+def _video_count_today(context, user_id):
+    counts = context.application.bot_data.setdefault("video_counts", {})
+    today = time.strftime("%Y-%m-%d", time.gmtime())
+    for key in [k for k in counts if k[1] != today]:
+        counts.pop(key, None)
+    return counts, (user_id, today)
+
+
+async def _handle_video(query, context, lang, data):
+    """The user tapped a video quality under the audio: send that video."""
+
+    message = query.message
+    user_id = query.from_user.id
+
+    try:
+        _prefix, token, index = data.split("_", 2)
+        info = _video_registry(context).get(token)
+        option = info["options"][int(index)] if info and info["user_id"] == user_id else None
+    except (ValueError, IndexError):
+        option = None
+
+    if not option:
+        await call_with_retry(message.reply_text, msg.t(lang, "VIDEO_EXPIRED"), parse_mode="Markdown")
+        return
+
+    quality, cache_key = option["quality"], info["cache_key"]
+
+    # Seen before? Telegram still holds the file - re-send it by id.
+    saved_id = get_link_video(cache_key, quality) if cache_key else None
+    if saved_id:
+        try:
+            await call_with_retry(message.reply_video, video=saved_id, supports_streaming=True)
+            bump_counter("cache_hit_video")
+            logger.info(f"Video served from memory: {cache_key} {quality}p user={user_id}")
+            return
+        except Exception:
+            logger.warning(f"Telegram rejected the saved video for {cache_key} {quality}p - downloading again")
+            forget_link_video(cache_key, quality)
+
+    counts, count_key = _video_count_today(context, user_id)
+    if counts.get(count_key, 0) >= VIDEO_DAILY_LIMIT:
+        await call_with_retry(
+            message.reply_text, msg.t(lang, "VIDEO_LIMIT_REACHED", limit=VIDEO_DAILY_LIMIT), parse_mode="Markdown"
+        )
+        return
+
+    status = await call_with_retry(
+        message.reply_text, msg.t(lang, "VIDEO_DOWNLOADING", quality=quality), parse_mode="Markdown"
+    )
+    path = None
+    try:
+        path, width, height, duration = await asyncio.to_thread(
+            call_sync_with_retry, download_video, info["url"], option
+        )
+        sent = await call_with_retry(
+            message.reply_video,
+            video=Path(path),
+            width=width, height=height, duration=int(duration) if duration else None,
+            supports_streaming=True,
+        )
+        counts[count_key] = counts.get(count_key, 0) + 1
+        bump_counter("video_sent")
+        if cache_key and getattr(getattr(sent, "video", None), "file_id", None):
+            try:
+                save_link_video(cache_key, quality, sent.video.file_id)
+            except Exception:
+                logger.warning("Could not save the video to the link cache")
+        await _delete_silently(status)
+    except Exception as error:
+        error_text = str(error).lower()
+        logger.exception(f"Video download failed for platform={info['platform']}: {type(error).__name__}")
+        if "too large" in error_text or "entity too large" in error_text:
+            reply = msg.t(lang, "VIDEO_TOO_BIG")
+        elif info["platform"] == "youtube" and "sign in to confirm" in error_text:
+            reply = msg.t(lang, "YOUTUBE_BLOCKED")
+            await _alert_owner_youtube_cookies(context)
+        else:
+            reply = msg.t(lang, "ERROR_GENERIC")
+        await call_with_retry(status.edit_text, reply, parse_mode="Markdown")
+    finally:
+        _remove_file(path)
 
 
 async def _handle_toggle_alphabet(query, context, lang):
