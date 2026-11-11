@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import re
 import time
 import uuid
 from pathlib import Path
@@ -723,6 +724,12 @@ async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     platform = detect_platform(url)
     logger.info(f"Link received: platform={platform} user={update.effective_user.id}")
+
+    # Stories (and highlights) are only served to a logged-in Instagram
+    # account, so a link can never work - say so instead of a generic error.
+    if platform == "instagram" and re.search(r"instagram\.com/stories/", url):
+        await call_with_retry(update.message.reply_text, msg.t(lang, "ERROR_INSTAGRAM_STORY"), parse_mode="Markdown")
+        return
 
     if platform in ("youtube", "instagram", "twitter", "tiktok", "facebook"):
         # Marked busy synchronously, BEFORE the duration lookup below awaits

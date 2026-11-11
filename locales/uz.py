@@ -329,6 +329,7 @@ VIDEO_TOO_BIG = "😕 Bu sifat Telegramning botlar uchun *50 MB* chegarasidan ka
 VIDEO_EXPIRED = "⏳ Bu video variantlari endi saqlanmagan (ularni faqat bir soat saqlayman). Havolani qayta yuboring."
 VIDEO_LIMIT_REACHED = "🎬 Bugungi *{limit} ta video* chegarasiga yetdingiz. Audio va matn ishlayveradi, videolar esa ertaga yangilanadi."
 PHOTOS_CAPTION = "📸 Bu postdagi rasmlar: *{count}*"
+ERROR_INSTAGRAM_STORY = "🔒 *Instagram storilari* faqat Instagramning ichida ochiladi, shuning uchun havola orqali ocha olmayman.\n\nStorini telefoningizga saqlang va *menga video faylni yuboring* — undan audio va matnni olib beraman."
 
 # --- YouTube refusing the server (expired cookies) ---
 YOUTUBE_BLOCKED = "⚠️ YouTube hozir meni bloklayapti, shuning uchun bu havolani yuklab ola olmayapman. Egasiga xabar berdim. Keyinroq urinib koʻring yoki audio yoki videoni fayl sifatida yuboring."
