@@ -6,7 +6,7 @@ import uuid
 from pathlib import Path
 from urllib.parse import quote_plus
 
-from telegram import CopyTextButton, Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import CopyTextButton, Update, InlineKeyboardButton, InlineKeyboardMarkup, InputMediaPhoto
 from telegram.ext import ContextTypes
 
 from utils.link_detector import extract_url, detect_platform, canonical_link_key
@@ -19,6 +19,7 @@ from services.tiktok_service import download_tiktok_video
 from services.facebook_service import download_facebook_video
 from services.audio_service import extract_audio
 from services.video_service import build_options, download_video
+from services.photo_service import find_photos, download_photos, download_audio
 from services.ai_cleanup_service import clean_transcript
 from services.export_service import export_to_pdf, export_to_text
 from services.translation_service import translate_text
@@ -775,6 +776,20 @@ async def handle_link(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if ack_message:
                 await _delete_silently(ack_message)
 
+            # Nothing playable found at all: on Instagram and TikTok that is
+            # what a photo post looks like. Those get their pictures (and
+            # music) instead of the audio + Get-the-text flow.
+            if platform in ("instagram", "tiktok") and not video_options and not duration:
+                try:
+                    photos = await asyncio.wait_for(asyncio.to_thread(find_photos, url, platform), timeout=45)
+                except asyncio.TimeoutError:
+                    photos = None
+                if photos:
+                    logger.info(f"Photo post: platform={platform} pictures={len(photos['images'])} music={bool(photos['audio_url'])}")
+                    await _serve_photos(update.message, context, lang, update.effective_user.id, photos)
+                    _mark_free(context)
+                    return
+
             if is_live:
                 _mark_free(context)
                 await call_with_retry(update.message.reply_text, msg.t(lang, "ERROR_LIVE_STREAM"), parse_mode="Markdown")
@@ -1319,6 +1334,64 @@ def _video_count_today(context, user_id):
     for key in [k for k in counts if k[1] != today]:
         counts.pop(key, None)
     return counts, (user_id, today)
+
+
+async def _serve_photos(message, context, lang, user_id, photos):
+    """
+    A photo post (Instagram picture/carousel, TikTok photo slideshow): there is
+    no speech to transcribe, so instead of the usual Get-the-text offer the
+    user just gets the pictures and, when the post has music, its audio.
+    """
+
+    counts, count_key = _video_count_today(context, user_id)
+    if counts.get(count_key, 0) >= VIDEO_DAILY_LIMIT:
+        await call_with_retry(
+            message.reply_text, msg.t(lang, "VIDEO_LIMIT_REACHED", limit=VIDEO_DAILY_LIMIT), parse_mode="Markdown"
+        )
+        return
+
+    photo_paths, audio_path = [], None
+    try:
+        photo_paths = await asyncio.to_thread(download_photos, photos["images"])
+        if not photo_paths:
+            raise ValueError("No picture could be downloaded")
+
+        caption = msg.t(lang, "PHOTOS_CAPTION", count=len(photo_paths))
+        for start in range(0, len(photo_paths), 10):
+            group = photo_paths[start:start + 10]
+            first_caption = caption if start == 0 else None
+            if len(group) == 1:
+                await call_with_retry(
+                    message.reply_photo, photo=Path(group[0]),
+                    **({"caption": first_caption, "parse_mode": "Markdown"} if first_caption else {}),
+                )
+            else:
+                media = [
+                    InputMediaPhoto(
+                        Path(path),
+                        **({"caption": first_caption, "parse_mode": "Markdown"} if i == 0 and first_caption else {}),
+                    )
+                    for i, path in enumerate(group)
+                ]
+                await call_with_retry(message.reply_media_group, media=media)
+
+        if photos.get("audio_url"):
+            audio_path = await asyncio.to_thread(download_audio, photos["audio_url"])
+            if audio_path:
+                await call_with_retry(
+                    message.reply_audio, audio=Path(audio_path),
+                    filename=(photos.get("title") or "ScriptlyAI_audio")[:60] + ".mp3",
+                    **_caption_kwargs(msg.t(lang, "AUDIO_CAPTION")),
+                )
+
+        counts[count_key] = counts.get(count_key, 0) + 1
+        bump_counter("photos_sent")
+    except Exception:
+        logger.exception("Sending the photo post failed")
+        await call_with_retry(message.reply_text, msg.t(lang, "ERROR_GENERIC"), parse_mode="Markdown")
+    finally:
+        for path in photo_paths + [audio_path]:
+            _remove_file(path)
 
 
 async def _handle_video(query, context, lang, data):
