@@ -192,9 +192,13 @@ def _size_label(size_bytes):
     return f" · ~{max(1, round(size_bytes / (1024 * 1024)))} MB"
 
 
-def _video_row(token, options):
+def _video_rows(lang, token, options):
+    """One full-width "Get video 360p · ~12 MB" button per quality."""
     return [
-        InlineKeyboardButton(f"🎬 {o['quality']}p{_size_label(o['bytes'])}", callback_data=f"vid_{token}_{i}")
+        [InlineKeyboardButton(
+            msg.t(lang, "VIDEO_BUTTON", quality=o["quality"]) + _size_label(o["bytes"]),
+            callback_data=f"vid_{token}_{i}",
+        )]
         for i, o in enumerate(options)
     ]
 
@@ -205,7 +209,7 @@ def _audio_markup(lang, token, options=None, with_text=True):
     if with_text:
         rows.append([InlineKeyboardButton(msg.t(lang, "GET_TEXT_BUTTON"), callback_data=f"get_text_{token}")])
     if options:
-        rows.append(_video_row(token, options))
+        rows.extend(_video_rows(lang, token, options))
     return InlineKeyboardMarkup(rows) if rows else None
 
 

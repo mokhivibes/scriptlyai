@@ -380,6 +380,7 @@ VIDEO_DOWNLOADING = "🎬 Getting your *{quality}p* video — this can take a mi
 VIDEO_TOO_BIG = "😕 That quality is over Telegram's *50 MB* limit for bots. Try a lower quality."
 VIDEO_EXPIRED = "⏳ Those video options aren't saved anymore (I only keep them for an hour). Please send the link again."
 VIDEO_LIMIT_REACHED = "🎬 You've reached today's limit of *{limit} videos*. Audio and text still work — and videos reset tomorrow."
+VIDEO_BUTTON = "🎬 Get video {quality}p"
 PHOTOS_CAPTION = "📸 Photos from this post: *{count}*"
 PHOTOS_DOWNLOADING = "📸 *Getting the media from your link…* _just a few seconds_"
 ERROR_INSTAGRAM_STORY = "🔒 *Instagram stories* are private to Instagram, so I can't open them from a link.\n\nSave the story to your phone and *send me the video file* — I'll get the audio and text from it."
