@@ -28,6 +28,7 @@ from services.summary_service import summarize_transcript, SummaryTooShort
 from database import (
     add_transcript,
     get_transcript_by_id,
+    get_transcripts_for_user,
     get_interface_language,
     get_uzbek_alphabet,
     set_uzbek_alphabet,
@@ -230,13 +231,14 @@ async def _deliver_transcript(message, context, lang, user_id, platform, title, 
     context.user_data["export_text"] = text
     context.user_data["export_language"] = detected_language
 
-    add_transcript(
+    transcript_id = add_transcript(
         user_id=user_id,
         platform=platform,
         detected_language=detected_language,
         title=title,
         transcript=text,
     )
+    context.user_data["last_transcript_id"] = transcript_id
 
     await call_with_retry(message.reply_sticker, STICKER_DONE)
     await send_result_text(message, msg.transcript_header_parts(lang), text)
@@ -245,7 +247,8 @@ async def _deliver_transcript(message, context, lang, user_id, platform, title, 
         message.reply_text,
         msg.t(lang, "NEXT_ACTIONS_PROMPT"),
         reply_markup=build_export_keyboard(
-            lang, text, alphabet=_alphabet_button_state(lang, detected_language, user_id)
+            lang, text, alphabet=_alphabet_button_state(lang, detected_language, user_id),
+            transcript_id=transcript_id,
         ),
     )
 
@@ -457,7 +460,12 @@ def _alphabet_row(lang, alphabet):
     return [InlineKeyboardButton(msg.t(lang, key), callback_data="toggle_alphabet")]
 
 
-def build_export_keyboard(lang, copy_text=None, alphabet=None):
+def build_export_keyboard(lang, copy_text=None, alphabet=None, transcript_id=None):
+    # The Summarize button names ITS transcript (by database id): it must keep
+    # working after a bot restart (the in-memory copy is gone) and when it sits
+    # under an older result than the user's latest one.
+    summarize_data = f"summarize_{transcript_id}" if transcript_id else "summarize"
+
     keyboard = [[
         InlineKeyboardButton(msg.t(lang, "EXPORT_PDF_BUTTON"), callback_data="export_pdf"),
         InlineKeyboardButton(msg.t(lang, "EXPORT_TXT_BUTTON"), callback_data="export_txt"),
@@ -470,10 +478,10 @@ def build_export_keyboard(lang, copy_text=None, alphabet=None):
     if TRANSLATION_ENABLED:
         keyboard.append([
             InlineKeyboardButton(msg.t(lang, "TRANSLATE_BUTTON"), callback_data="translate_menu"),
-            InlineKeyboardButton(msg.t(lang, "SUMMARIZE_BUTTON"), callback_data="summarize"),
+            InlineKeyboardButton(msg.t(lang, "SUMMARIZE_BUTTON"), callback_data=summarize_data),
         ])
     else:
-        keyboard.append([InlineKeyboardButton(msg.t(lang, "SUMMARIZE_BUTTON"), callback_data="summarize")])
+        keyboard.append([InlineKeyboardButton(msg.t(lang, "SUMMARIZE_BUTTON"), callback_data=summarize_data)])
 
     if alphabet:
         keyboard.append(_alphabet_row(lang, alphabet))
@@ -505,7 +513,7 @@ def build_save_keyboard(lang, copy_text=None, alphabet=None):
     return InlineKeyboardMarkup(keyboard)
 
 
-def build_summarize_retry_keyboard(lang):
+def build_summarize_retry_keyboard(lang, transcript_id=None):
     """
     A single-button keyboard attached to SUMMARY_FAILED so the retry it
     promises ("tap the button below") is an actual tap target, not just
@@ -515,7 +523,8 @@ def build_summarize_retry_keyboard(lang):
     Translate, so this is its own small keyboard.
     """
 
-    keyboard = [[InlineKeyboardButton(msg.t(lang, "SUMMARIZE_BUTTON"), callback_data="summarize")]]
+    data = f"summarize_{transcript_id}" if transcript_id else "summarize"
+    keyboard = [[InlineKeyboardButton(msg.t(lang, "SUMMARIZE_BUTTON"), callback_data=data)]]
     return InlineKeyboardMarkup(keyboard)
 
 
@@ -1303,8 +1312,8 @@ async def handle_callback_query(update: Update, context: ContextTypes.DEFAULT_TY
                 await _handle_translate_menu(query, context, lang)
             else:
                 await _handle_translate_to(query, context, lang, data.replace("translate_to_", ""))
-        elif data == "summarize":
-            await _handle_summarize(query, context, lang)
+        elif data == "summarize" or data.startswith("summarize_"):
+            await _handle_summarize(query, context, lang, data[len("summarize_"):] or None)
         elif data.startswith("get_text_"):
             await _handle_get_text(query, context, lang, data.replace("get_text_", ""))
         elif data.startswith("vid_"):
@@ -1528,6 +1537,7 @@ async def _handle_toggle_alphabet(query, context, lang):
     what's on screen in the other one. Cheap - no pipeline work."""
 
     user_id = query.from_user.id
+    _restore_latest_transcript(context, user_id)
     on_screen = context.user_data.get("export_text") or context.user_data.get("last_transcript")
 
     if not on_screen or context.user_data.get("export_language") != "uz":
@@ -1554,7 +1564,9 @@ async def _handle_toggle_alphabet(query, context, lang):
         await call_with_retry(
             query.message.reply_text,
             msg.t(lang, "NEXT_ACTIONS_PROMPT"),
-            reply_markup=build_export_keyboard(lang, rendered, alphabet=choice),
+            reply_markup=build_export_keyboard(
+                lang, rendered, alphabet=choice, transcript_id=context.user_data.get("last_transcript_id")
+            ),
         )
     else:
         await call_with_retry(
@@ -1568,6 +1580,7 @@ async def _handle_copy(query, context, lang):
     """Re-sends whatever is currently on screen as monospace (tap-to-copy)
     messages - the fallback for text too long for Telegram's native copy button."""
 
+    _restore_latest_transcript(context, query.from_user.id)
     text = context.user_data.get("export_text") or context.user_data.get("last_transcript")
     if not text:
         await call_with_retry(query.message.reply_text, msg.t(lang, "NO_TRANSCRIPT_SAVED"), parse_mode="Markdown")
@@ -1622,6 +1635,7 @@ async def _handle_export(query, context, lang, data):
     # what "save this" should mean regardless of which screen the user
     # tapped it from. Falls back to last_transcript for any older
     # in-flight session that set that but not export_text yet.
+    _restore_latest_transcript(context, query.from_user.id)
     transcript = context.user_data.get("export_text") or context.user_data.get("last_transcript")
     detected_language = context.user_data.get("export_language") or context.user_data.get("detected_language", "en")
 
@@ -1754,8 +1768,51 @@ async def _handle_translate_to(query, context, lang, target_code):
         )
 
 
-async def _handle_summarize(query, context, lang):
-    transcript = context.user_data.get("last_transcript")
+def _restore_latest_transcript(context, user_id):
+    """
+    The active transcript lives in memory, so a bot restart (or a long idle
+    gap) leaves a user with buttons on screen and nothing behind them. Load
+    their newest saved transcript back so those buttons keep working.
+    Returns True if something is active afterwards.
+    """
+
+    if context.user_data.get("export_text") or context.user_data.get("last_transcript"):
+        return True
+
+    rows = get_transcripts_for_user(user_id, limit=1)
+    if not rows:
+        return False
+
+    transcript_id, _platform, language, _title, text, _created = rows[0]
+    if language == "uz":
+        text = render_uzbek(text, _alphabet_for(user_id))
+    context.user_data["last_transcript"] = text
+    context.user_data["detected_language"] = language
+    context.user_data["export_text"] = text
+    context.user_data["export_language"] = language
+    context.user_data["last_transcript_id"] = transcript_id
+    return True
+
+
+async def _handle_summarize(query, context, lang, transcript_id_raw=None):
+    transcript = None
+
+    # The button names its transcript - use exactly that one (scoped to the
+    # user, like history), so it works after restarts and under older results.
+    if transcript_id_raw:
+        try:
+            row = get_transcript_by_id(int(transcript_id_raw), query.from_user.id)
+        except ValueError:
+            row = None
+        if row:
+            _id, _platform, detected_language, _title, transcript, _created = row
+            context.user_data["last_transcript"] = transcript
+            context.user_data["detected_language"] = detected_language
+            context.user_data["last_transcript_id"] = _id
+
+    if not transcript:
+        _restore_latest_transcript(context, query.from_user.id)
+        transcript = context.user_data.get("last_transcript")
 
     if not transcript:
         await call_with_retry(query.message.reply_text, msg.t(lang, "NO_TRANSCRIPT_SAVED"), parse_mode="Markdown")
@@ -1804,7 +1861,7 @@ async def _handle_summarize(query, context, lang):
             status_message.edit_text,
             msg.t(lang, "SUMMARY_FAILED"),
             parse_mode="Markdown",
-            reply_markup=build_summarize_retry_keyboard(lang),
+            reply_markup=build_summarize_retry_keyboard(lang, context.user_data.get("last_transcript_id")),
         )
 
 
@@ -1834,6 +1891,7 @@ async def _handle_history_select(query, context, lang, transcript_id_raw):
     context.user_data["detected_language"] = detected_language
     context.user_data["export_text"] = transcript_text
     context.user_data["export_language"] = detected_language
+    context.user_data["last_transcript_id"] = transcript_id
 
     short_date = msg.format_short_date(lang, created_at)
     await call_with_retry(
@@ -1846,6 +1904,7 @@ async def _handle_history_select(query, context, lang, transcript_id_raw):
         query.message.reply_text,
         msg.t(lang, "NEXT_ACTIONS_PROMPT"),
         reply_markup=build_export_keyboard(
-            lang, transcript_text, alphabet=_alphabet_button_state(lang, detected_language, query.from_user.id)
+            lang, transcript_text, alphabet=_alphabet_button_state(lang, detected_language, query.from_user.id),
+            transcript_id=transcript_id,
         )
     )
