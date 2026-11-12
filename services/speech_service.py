@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import random
 import re
 import subprocess
 import threading
@@ -731,6 +732,9 @@ def _normalize_language_code(language_name):
 
 NO_SPEECH_THRESHOLD = 0.6
 
+TRANSCRIBE_MAX_ATTEMPTS = 6
+TRANSCRIBE_MAX_TOTAL_WAIT = 75   # seconds, summed over the retries of one request
+
 
 def _transcribe(audio_path: str, language: str = None):
     data = {"model": MODEL_NAME, "response_format": "verbose_json"}
@@ -740,7 +744,11 @@ def _transcribe(audio_path: str, language: str = None):
     # A short "too many requests" from Groq (per-minute limits) is waited out,
     # like the chat calls (see services/groq_chat.py); a long one - the hourly
     # or daily audio cap - raises so the user gets the "busy, try later" reply.
-    for attempt in range(1, 4):
+    # Patient on purpose: when many people arrive at once (load test: 40 in a
+    # minute) the 20-requests-a-minute limit is hit in waves, and a request that
+    # gave up after 3 short waits failed although waiting a bit longer worked.
+    waited = 0.0
+    for attempt in range(1, TRANSCRIBE_MAX_ATTEMPTS + 1):
         with open(audio_path, "rb") as audio_file:
             response = requests.post(
                 GROQ_TRANSCRIPTION_URL,
@@ -751,10 +759,11 @@ def _transcribe(audio_path: str, language: str = None):
             )
 
         if response.status_code == 429:
-            wait = _retry_wait(response)
-            if attempt < 3 and wait <= GROQ_MAX_WAIT_SECONDS:
-                logger.info(f"Groq transcription rate limited - waiting {wait:.1f}s (attempt {attempt}/3)")
+            wait = _retry_wait(response) + random.uniform(0, 2)   # jitter: queued requests must not retry in lockstep
+            if attempt < TRANSCRIBE_MAX_ATTEMPTS and wait <= GROQ_MAX_WAIT_SECONDS and waited + wait <= TRANSCRIBE_MAX_TOTAL_WAIT:
+                logger.info(f"Groq transcription rate limited - waiting {wait:.1f}s (attempt {attempt}/{TRANSCRIBE_MAX_ATTEMPTS})")
                 time.sleep(wait + 0.5)
+                waited += wait + 0.5
                 continue
 
         break

@@ -12,3 +12,4 @@ logs/
 # command documented there if this machine's copy is ever lost.
 models/
 youtube_cookies.txt
+youtube_cookies.txt*

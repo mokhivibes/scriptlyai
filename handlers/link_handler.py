@@ -950,6 +950,8 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
     ask_first = (upload is None or bool(upload.get("send_audio"))) and resume is None and not audio_already_sent
     cache_key = canonical_link_key(url, platform) if url else None
 
+    usage_charged = False   # becomes True once this request is counted; refunded if it then fails
+
     if not ask_first:
         if get_daily_usage_count(user_id) >= PER_USER_DAILY_LIMIT:
             _mark_free(context)
@@ -959,6 +961,7 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
             return
 
         increment_daily_usage(user_id)
+        usage_charged = True
         await _maybe_alert_owner_of_capacity(context)
 
     _mark_busy(context)
@@ -1182,6 +1185,7 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
 
         if not transcript.strip():
             decrement_daily_usage(user_id)
+            usage_charged = False
             raise ValueError("No speech detected in this audio.")
 
         logger.info(f"Detected language: {detected_language}")
@@ -1216,6 +1220,11 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
         error_text = str(error).lower()
 
         logger.exception(f"Processing failed for platform={platform}: {error_name}: {error}")
+
+        # A request that failed (rate limit, outage, bad file) must not use up
+        # one of the user's daily requests.
+        if usage_charged:
+            decrement_daily_usage(user_id)
 
         youtube_blocked = platform == "youtube" and "sign in to confirm" in error_text
 
