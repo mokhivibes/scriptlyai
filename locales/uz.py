@@ -333,6 +333,7 @@ VIDEO_BUTTON = "🎬 Videoni olish {quality}p"
 PHOTOS_CAPTION = "📸 Bu postdagi rasmlar: *{count}*"
 PHOTOS_DOWNLOADING = "📸 *Havolangizdan mediani olyapman…* _bir necha soniya_"
 ERROR_INSTAGRAM_STORY = "🔒 *Instagram storilari* faqat Instagramning ichida ochiladi, shuning uchun havola orqali ocha olmayman.\n\nStorini telefoningizga saqlang va *menga video faylni yuboring* — undan audio va matnni olib beraman."
+ERROR_REGION_BLOCKED = "🌍 Bu postni mening joylashuvimdan ochib bo'lmayapti — platforma bu yerda uni bloklaydi.\n\nVideoni telefoningizga saqlang va *menga fayl sifatida yuboring* — undan audio va matnni olib beraman."
 
 # --- YouTube refusing the server (expired cookies) ---
 YOUTUBE_BLOCKED = "⚠️ YouTube hozir meni bloklayapti, shuning uchun bu havolani yuklab ola olmayapman. Egasiga xabar berdim. Keyinroq urinib koʻring yoki audio yoki videoni fayl sifatida yuboring."

@@ -248,6 +248,18 @@ async def feedback_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await call_with_retry(update.message.reply_text, msg.t(lang, "FEEDBACK_THANKS"))
 
 
+def _cookie_line() -> str:
+    from services.cookie_service import cookie_status
+    days, problem = cookie_status()
+    if problem:
+        return f"YouTube cookies: {problem} - send me a new cookies.txt file here"
+    if days is None:
+        return "YouTube cookies: installed (no expiry date in the file)"
+    if days < 5:
+        return f"YouTube cookies: ⚠️ expire in {max(0, int(days))} days - send me a new cookies.txt file here"
+    return f"YouTube cookies: OK, about {int(days)} days left"
+
+
 async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Owner-only usage report (not in the command menu). Silent for everyone else."""
 
@@ -284,7 +296,8 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"Served from memory today: {counters.get('cache_hit_audio', 0)} audio, {counters.get('cache_hit_text', 0)} text "
         "(no download or quota used)\n"
         f"YouTube downloads today: {counters.get('youtube_ok', 0)} ok, "
-        f"{counters.get('youtube_signin_error', 0)} blocked (blocked = cookies expired)\n\n"
+        f"{counters.get('youtube_signin_error', 0)} blocked (blocked = cookies expired)\n"
+        f"{_cookie_line()}\n\n"
         f"Quotas reset at {reset_local:%H:%M} Tashkent (in {hours}h {minutes}m).\n"
         "Counts cover only this bot's own calls."
     )

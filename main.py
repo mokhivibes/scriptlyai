@@ -11,8 +11,9 @@ from telegram.ext import (
 )
 
 from logging_config import setup_logging
-from config import BOT_TOKEN, CLEAN_STALE_DOWNLOADS
+from config import BOT_TOKEN, CLEAN_STALE_DOWNLOADS, OWNER_USER_ID
 from database import init_database, add_user, get_interface_language
+from handlers.owner_handler import handle_cookie_upload
 from handlers.link_handler import handle_link, handle_callback_query, handle_unsupported_message, handle_media_file
 from handlers.command_handler import (
     help_command,
@@ -185,6 +186,11 @@ def main():
     application.add_handler(CommandHandler("feedback", feedback_command))
     # Owner-only (checked inside); deliberately not in the public command menu.
     application.add_handler(CommandHandler("stats", stats_command))
+    if OWNER_USER_ID:
+        # Owner-only: a .txt document is a fresh YouTube cookie file (checked inside).
+        application.add_handler(MessageHandler(
+            filters.Document.FileExtension("txt") & filters.User(user_id=OWNER_USER_ID), handle_cookie_upload
+        ))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_link))
     # Anything else a user might send directly (voice note, video file,
     # photo, document, sticker) - previously unhandled entirely, meaning

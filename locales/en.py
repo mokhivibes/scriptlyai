@@ -384,6 +384,7 @@ VIDEO_BUTTON = "🎬 Get video {quality}p"
 PHOTOS_CAPTION = "📸 Photos from this post: *{count}*"
 PHOTOS_DOWNLOADING = "📸 *Getting the media from your link…* _just a few seconds_"
 ERROR_INSTAGRAM_STORY = "🔒 *Instagram stories* are private to Instagram, so I can't open them from a link.\n\nSave the story to your phone and *send me the video file* — I'll get the audio and text from it."
+ERROR_REGION_BLOCKED = "🌍 That post can't be opened from my location — the platform blocks it here.\n\nSave the video to your phone and *send it to me as a file* — I'll get the audio and text from it."
 
 # --- YouTube refusing the server (expired cookies) ---
 YOUTUBE_BLOCKED = "⚠️ YouTube is blocking me for the moment, so I can't fetch this link right now. I've let the owner know. Please try again later, or send the audio or video as a file instead."

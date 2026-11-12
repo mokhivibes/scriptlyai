@@ -637,7 +637,8 @@ async def _alert_owner_youtube_cookies(context):
                 "cookies have expired.\n\n"
                 "To fix it: open a private Chrome window, sign in to youtube.com with the spare Google account, "
                 "open youtube.com/robots.txt, click the \"Get cookies.txt LOCALLY\" icon and press Export, close the "
-                "window, then ask Claude to upload the new file (it will be in Downloads).\n\n"
+                "window, then SEND THE DOWNLOADED cookies.txt FILE TO ME HERE in this chat - I will check it with "
+                "YouTube, install it and delete your message.\n\n"
                 "Other platforms and file uploads still work."
             ),
         )
@@ -1229,6 +1230,10 @@ async def _process_link(message, context, url, platform, platform_name, lang, us
             error_reply_text = msg.t(lang, "ERROR_NO_VIDEO")
         elif "does not contain an audio track" in error_text:
             error_reply_text = msg.t(lang, "ERROR_NO_AUDIO")
+        elif "ip address is blocked" in error_text or "your country" in error_text or "geo restrict" in error_text:
+            # The platform refuses this post from the server's location - not
+            # the user's link problem, and a file upload gets around it.
+            error_reply_text = msg.t(lang, "ERROR_REGION_BLOCKED")
         elif "private" in error_text:
             error_reply_text = msg.t(lang, "ERROR_PRIVATE")
         elif "unavailable" in error_text or "not available" in error_text or "removed" in error_text:
